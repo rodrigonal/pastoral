@@ -5,7 +5,7 @@
 </head>
 <body class="auth-pjc min-h-svh antialiased">
     <div class="fixed inset-0">
-        <div class="absolute inset-0 bg-stone-900 bg-repeat bg-center" style="background-image: url('{{ asset('storage/pjc.png') }}')"></div>
+        <div class="absolute inset-0 bg-stone-900 bg-repeat bg-center" style="background-image: url('{{ asset('images/pjc.png') }}')"></div>
         <div class="absolute inset-0 bg-gradient-to-t from-stone-950/90 via-stone-900/50 to-stone-900/30"></div>
     </div>
 

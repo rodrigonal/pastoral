@@ -11,7 +11,8 @@
             if (str === '') return '';
             const padded = str.padStart(3, '0');
             const cents = padded.slice(-2);
-            const intPart = padded.slice(0, -2).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            let intPart = padded.slice(0, -2).replace(/^0+/, '') || '0';
+            intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
             return 'R$ ' + intPart + ',' + cents;
         },
         parseToDigits(val) {

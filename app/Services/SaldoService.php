@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\CategoriaLancamentoEnum;
 use App\Enums\TipoLancamentoEnum;
 use App\Models\Lancamento;
 use Carbon\Carbon;
@@ -10,6 +11,7 @@ class SaldoService
 {
     /**
      * Saldo acumulado até determinada data (inclusive).
+     * Reembolsos não afetam o saldo (apenas controle no relatório).
      */
     public function saldoAcumulado(?Carbon $ate = null): float
     {
@@ -25,6 +27,7 @@ class SaldoService
 
         $saidas = (clone $query)
             ->where('tipo', TipoLancamentoEnum::Saida)
+            ->where('categoria', '!=', CategoriaLancamentoEnum::Reembolso)
             ->sum('valor');
 
         return round($entradas - $saidas, 2);
@@ -54,12 +57,26 @@ class SaldoService
     }
 
     /**
-     * Total de saídas no período.
+     * Total de saídas no período (exclui reembolsos - não afetam saldo).
      */
     public function totalSaidasPeriodo(Carbon $de, Carbon $ate): float
     {
         return (float) Lancamento::query()
             ->where('tipo', TipoLancamentoEnum::Saida)
+            ->where('categoria', '!=', CategoriaLancamentoEnum::Reembolso)
+            ->whereDate('data', '>=', $de->format('Y-m-d'))
+            ->whereDate('data', '<=', $ate->format('Y-m-d'))
+            ->sum('valor');
+    }
+
+    /**
+     * Total de reembolsos no período (apenas para controle no relatório).
+     */
+    public function totalReembolsosPeriodo(Carbon $de, Carbon $ate): float
+    {
+        return (float) Lancamento::query()
+            ->where('tipo', TipoLancamentoEnum::Saida)
+            ->where('categoria', CategoriaLancamentoEnum::Reembolso)
             ->whereDate('data', '>=', $de->format('Y-m-d'))
             ->whereDate('data', '<=', $ate->format('Y-m-d'))
             ->sum('valor');

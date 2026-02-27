@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\CategoriaLancamentoEnum;
 use App\Enums\TipoLancamentoEnum;
 use App\Models\Lancamento;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -16,7 +17,80 @@ class PrestacaoContasPdfService
         private readonly SaldoService $saldoService
     ) {}
 
-    public function gerar(int $mes, int $ano): \Barryvdh\DomPDF\PDF|Response
+    /**
+     * Gera PDF para um período de vários meses (mês inicial até mês final).
+     */
+    public function gerarPeriodo(int $mesInicio, int $anoInicio, int $mesFim, int $anoFim): Response
+    {
+        $dataInicio = Carbon::createFromDate($anoInicio, $mesInicio, 1);
+        $dataFim = Carbon::createFromDate($anoFim, $mesFim, 1);
+        if ($dataInicio->gt($dataFim)) {
+            return response()->json(['message' => 'Período inválido: data inicial deve ser anterior à final.'], 422);
+        }
+
+        $fpdi = new Fpdi;
+        $tempFiles = [];
+
+        try {
+            $mesAtual = (clone $dataInicio)->startOfMonth();
+            while ($mesAtual->lte($dataFim)) {
+                $tempFile = $this->gerarPdfUnicoMesTemp($mesAtual->month, $mesAtual->year);
+                $tempFiles[] = $tempFile;
+
+                $pageCount = $fpdi->setSourceFile($tempFile);
+                for ($i = 1; $i <= $pageCount; $i++) {
+                    $tplId = $fpdi->importPage($i);
+                    $fpdi->AddPage();
+                    $fpdi->useTemplate($tplId);
+                }
+                $mesAtual->addMonth();
+            }
+
+            $output = $fpdi->Output('S');
+        } finally {
+            foreach ($tempFiles as $f) {
+                @unlink($f);
+            }
+        }
+
+        $mesInicioNome = Carbon::create()->month($mesInicio)->locale('pt_BR')->translatedFormat('F');
+        $mesFimNome = Carbon::create()->month($mesFim)->locale('pt_BR')->translatedFormat('F');
+        $filename = $mesInicio === $mesFim && $anoInicio === $anoFim
+            ? "prestacao-contas-{$mesInicioNome}-{$anoInicio}.pdf"
+            : "prestacao-contas-{$mesInicioNome}-{$anoInicio}-a-{$mesFimNome}-{$anoFim}.pdf";
+
+        return response()->streamDownload(
+            fn () => print($output),
+            $filename,
+            ['Content-Type' => 'application/pdf']
+        );
+    }
+
+    /**
+     * Gera PDF para um único mês (retorna Response com stream).
+     */
+    public function gerar(int $mes, int $ano): Response
+    {
+        $tempFile = $this->gerarPdfUnicoMesTemp($mes, $ano);
+        $mesNome = Carbon::create()->month($mes)->locale('pt_BR')->translatedFormat('F');
+        $filename = "prestacao-contas-{$mesNome}-{$ano}.pdf";
+
+        try {
+            return response()->streamDownload(
+                fn () => print(file_get_contents($tempFile)),
+                $filename,
+                ['Content-Type' => 'application/pdf']
+            );
+        } finally {
+            @unlink($tempFile);
+        }
+    }
+
+    /**
+     * Gera PDF para um único mês e retorna o path do arquivo temporário.
+     * O caller deve deletar o arquivo após o uso.
+     */
+    private function gerarPdfUnicoMesTemp(int $mes, int $ano): string
     {
         $inicio = Carbon::createFromDate($ano, $mes, 1)->startOfMonth();
         $fim = Carbon::createFromDate($ano, $mes, 1)->endOfMonth();
@@ -35,8 +109,12 @@ class PrestacaoContasPdfService
             ->orderBy('data')
             ->get();
 
+        $saidasAfetamSaldo = $saidas->filter(fn ($l) => $l->categoria !== CategoriaLancamentoEnum::Reembolso);
+        $reembolsos = $saidas->filter(fn ($l) => $l->categoria === CategoriaLancamentoEnum::Reembolso);
+
         $totalEntradas = $this->saldoService->totalEntradasPeriodo($inicio, $fim);
         $totalSaidas = $this->saldoService->totalSaidasPeriodo($inicio, $fim);
+        $totalReembolsos = $this->saldoService->totalReembolsosPeriodo($inicio, $fim);
         $saldoAnterior = $this->saldoService->saldoAnterior($mes, $ano);
         $saldoFinal = $saldoAnterior + $totalEntradas - $totalSaidas;
 
@@ -46,9 +124,11 @@ class PrestacaoContasPdfService
         $data = [
             'titulo' => $titulo,
             'entradas' => $entradas,
-            'saidas' => $saidas,
+            'saidasAfetamSaldo' => $saidasAfetamSaldo,
+            'reembolsos' => $reembolsos,
             'totalEntradas' => $totalEntradas,
             'totalSaidas' => $totalSaidas,
+            'totalReembolsos' => $totalReembolsos,
             'saldoAnterior' => $saldoAnterior,
             'saldoFinal' => $saldoFinal,
         ];
@@ -61,12 +141,12 @@ class PrestacaoContasPdfService
             ->sortBy('data')
             ->values();
 
-        if ($lancamentosComPdf->isEmpty()) {
-            return $domPdf;
-        }
-
         $tempMain = tempnam(sys_get_temp_dir(), 'prestacao_');
         $domPdf->save($tempMain);
+
+        if ($lancamentosComPdf->isEmpty()) {
+            return $tempMain;
+        }
 
         try {
             $fpdi = new Fpdi;
@@ -94,17 +174,14 @@ class PrestacaoContasPdfService
                 }
             }
 
-            $output = $fpdi->Output('S');
-        } finally {
+            $tempFinal = tempnam(sys_get_temp_dir(), 'prestacao_');
+            file_put_contents($tempFinal, $fpdi->Output('S'));
             @unlink($tempMain);
+
+            return $tempFinal;
+        } catch (\Throwable $e) {
+            @unlink($tempMain);
+            throw $e;
         }
-
-        $filename = "prestacao-contas-{$mesNome}-{$ano}.pdf";
-
-        return response()->streamDownload(
-            fn () => print($output),
-            $filename,
-            ['Content-Type' => 'application/pdf']
-        );
     }
 }

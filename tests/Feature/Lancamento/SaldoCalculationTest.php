@@ -73,3 +73,38 @@ it('calcula saldo periodo corretamente', function () {
 it('saldo anterior retorna zero quando nao ha lancamentos anteriores', function () {
     expect($this->saldoService->saldoAnterior(2, 2025))->toBe(0.0);
 });
+
+it('reembolso nao afeta o saldo', function () {
+    $user = User::factory()->create();
+    $segmento = Segmento::factory()->create();
+
+    $lanc1 = Lancamento::create([
+        'data' => now()->subDays(5),
+        'tipo' => TipoLancamentoEnum::Entrada,
+        'categoria' => CategoriaLancamentoEnum::Arrecadacao,
+        'valor' => 1000,
+        'descricao' => 'Arrecadação',
+        'user_id' => $user->id,
+    ]);
+    $lanc1->segmentos()->attach($segmento);
+
+    Lancamento::create([
+        'data' => now()->subDays(3),
+        'tipo' => TipoLancamentoEnum::Saida,
+        'categoria' => CategoriaLancamentoEnum::Reembolso,
+        'valor' => 200,
+        'descricao' => 'Reembolso membro',
+        'user_id' => $user->id,
+    ]);
+
+    Lancamento::create([
+        'data' => now()->subDays(2),
+        'tipo' => TipoLancamentoEnum::Saida,
+        'categoria' => CategoriaLancamentoEnum::Compra,
+        'valor' => 300,
+        'descricao' => 'Compra',
+        'user_id' => $user->id,
+    ]);
+
+    expect($this->saldoService->saldoAcumulado())->toBe(700.0);
+});

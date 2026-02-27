@@ -11,17 +11,18 @@ A Pastoral de Rua é uma ação mensal. Cada segmento arrecada valores e envia a
 
 ## Categorias
 
-| Categoria | Tipo | Segmento |
-|-----------|------|----------|
-| Arrecadação | Entrada | Obrigatório |
-| Repasse | Saída | Opcional |
-| Compra | Saída | Opcional |
-| Reembolso | Saída | Opcional |
-| Outro | Entrada ou Saída | Opcional |
+| Categoria | Tipo | Segmento | Observação |
+|-----------|------|----------|------------|
+| Arrecadação | Entrada | Obrigatório | |
+| Repasse | Saída | Opcional | |
+| Compra | Saída | Opcional | |
+| Reembolso | Saída | Opcional | Não afeta saldo – apenas controle no relatório |
+| Outro | Entrada ou Saída | Opcional | |
 
 ## Cálculo de Saldo
 
-- Saldo = Soma(Entradas) - Soma(Saídas)
+- Saldo = Soma(Entradas) - Soma(Saídas, exceto Reembolso)
+- Reembolsos aparecem no relatório para controle, mas não alteram o saldo
 - Calculado dinamicamente via `SaldoService`
 - Não armazenar saldo fixo no banco
 

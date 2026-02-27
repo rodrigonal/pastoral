@@ -64,7 +64,7 @@
             </tr>
         </thead>
         <tbody>
-            @forelse($saidas as $lancamento)
+            @forelse($saidasAfetamSaldo as $lancamento)
                 <tr>
                     <td>{{ $lancamento->data->format('d/m/Y') }}</td>
                     <td>{{ ucfirst($lancamento->categoria->value) }}</td>
@@ -83,6 +83,32 @@
         </tbody>
     </table>
 
+    @if($reembolsos->isNotEmpty())
+    <h2>REEMBOLSOS (apenas controle – não altera saldo)</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Data</th>
+                <th>Descrição</th>
+                <th style="text-align: right;">Valor</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($reembolsos as $lancamento)
+                <tr>
+                    <td>{{ $lancamento->data->format('d/m/Y') }}</td>
+                    <td>{{ $lancamento->descricao }}</td>
+                    <td style="text-align: right;" class="valor-saida">R$ {{ number_format($lancamento->valor, 2, ',', '.') }}</td>
+                </tr>
+            @endforeach
+            <tr class="total">
+                <td colspan="2">Total de Reembolsos</td>
+                <td style="text-align: right;">R$ {{ number_format($totalReembolsos, 2, ',', '.') }}</td>
+            </tr>
+        </tbody>
+    </table>
+    @endif
+
     <table style="width: 300px; margin-left: auto;">
         <tr>
             <td>Saldo Anterior:</td>
@@ -95,7 +121,7 @@
     </table>
 
     @php
-        $lancamentosComAnexo = $entradas->concat($saidas)->filter(fn ($l) => $l->anexo_path)->sortBy('data');
+        $lancamentosComAnexo = $entradas->concat($saidasAfetamSaldo)->concat($reembolsos)->filter(fn ($l) => $l->anexo_path)->sortBy('data');
     @endphp
     @if($lancamentosComAnexo->isNotEmpty())
         <h2 style="margin-top: 32px;">COMPROVANTES / ANEXOS</h2>

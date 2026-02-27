@@ -3,12 +3,30 @@
 ## Build para produção
 
 ```bash
+# 1. Limpar caches
+php artisan config:clear
+php artisan route:clear
+php artisan view:clear
+
+# 2. Build
 composer install --no-dev --optimize-autoloader
 npm run build
+
+# 3. Symlink Flux (flux.min.js deve apontar para flux-lite.min.js - contém ui-sidebar-toggle)
+rm -rf public/flux
+mkdir -p public/flux
+ln -sf ../../vendor/livewire/flux/dist/flux-lite.min.js public/flux/flux.min.js
+ln -sf ../../vendor/livewire/flux/dist/flux-lite.min.js public/flux/flux.js
+
+# 4. Permissões
+chmod -R 775 storage bootstrap/cache
+
+# 5. Caches
 php artisan config:cache
 php artisan route:cache
-php artisan view:clear   # Limpa cache antes de regenerar (evita views desatualizadas)
 php artisan view:cache
+
+# 6. Migrações
 php artisan migrate --force
 ```
 

@@ -18,14 +18,16 @@ class PrestacaoContasController extends Controller
                 'ano_inicio' => ['required', 'integer', 'min:2020', 'max:2030'],
                 'mes_fim' => ['required', 'integer', 'min:1', 'max:12'],
                 'ano_fim' => ['required', 'integer', 'min:2020', 'max:2030'],
+                'formato_periodo' => ['nullable', 'string', 'in:mensal,resumo'],
             ]);
 
             $mesInicio = (int) $request->input('mes_inicio');
             $anoInicio = (int) $request->input('ano_inicio');
             $mesFim = (int) $request->input('mes_fim');
             $anoFim = (int) $request->input('ano_fim');
+            $formato = $request->input('formato_periodo', 'mensal');
 
-            return app(PrestacaoContasPdfService::class)->gerarPeriodo($mesInicio, $anoInicio, $mesFim, $anoFim);
+            return app(PrestacaoContasPdfService::class)->gerarPeriodo($mesInicio, $anoInicio, $mesFim, $anoFim, $formato);
         }
 
         $request->validate([

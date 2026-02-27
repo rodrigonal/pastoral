@@ -10,6 +10,7 @@ class extends Component {
     public int $mes;
     public int $ano;
     public bool $usarPeriodo = false;
+    public string $formatoPeriodo = 'mensal'; // 'mensal' ou 'resumo'
     public int $mesInicio;
     public int $anoInicio;
     public int $mesFim;
@@ -64,6 +65,21 @@ class extends Component {
                 <div>
                     <label class="mb-1 block text-sm font-medium">Ano final</label>
                     <input type="number" name="ano_fim" value="{{ $anoFim }}" min="2020" max="2030" class="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-700">
+                </div>
+                <div class="col-span-2">
+                    <label class="mb-1 block text-sm font-medium">Formato</label>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="formato_periodo" value="mensal" {{ $formatoPeriodo === 'mensal' ? 'checked' : '' }} wire:model="formatoPeriodo"
+                                class="rounded border-zinc-300 dark:border-zinc-600">
+                            <span class="text-sm">Mensal – cada mês separado no mesmo PDF</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="formato_periodo" value="resumo" {{ $formatoPeriodo === 'resumo' ? 'checked' : '' }} wire:model="formatoPeriodo"
+                                class="rounded border-zinc-300 dark:border-zinc-600">
+                            <span class="text-sm">Resumo – todos os lançamentos juntos, saldo final único</span>
+                        </label>
+                    </div>
                 </div>
             </div>
             @else

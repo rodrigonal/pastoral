@@ -15,6 +15,7 @@ class extends Component {
     public string $username = '';
     public string $email = '';
     public string $password = '';
+    public string $password_confirmation = '';
     public string $role = '';
 
     public function mount(User $user): void

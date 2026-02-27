@@ -7,6 +7,7 @@ composer install --no-dev --optimize-autoloader
 npm run build
 php artisan config:cache
 php artisan route:cache
+php artisan view:clear   # Limpa cache antes de regenerar (evita views desatualizadas)
 php artisan view:cache
 php artisan migrate --force
 ```

@@ -81,6 +81,23 @@ class extends Component {
         $this->redirect(route('lancamentos.index'), navigate: true);
     }
 
+    public function removeAnexo(): void
+    {
+        if (! auth()->user()->hasRole('admin')) {
+            abort(403);
+        }
+
+        if (! $this->lancamento->anexo_path) {
+            return;
+        }
+
+        \Illuminate\Support\Facades\Storage::disk('local')->delete($this->lancamento->anexo_path);
+        $this->lancamento->update(['anexo_path' => null]);
+        $this->lancamento->refresh();
+
+        session()->flash('message', 'Anexo removido com sucesso.');
+    }
+
     public function with(): array
     {
         return [
@@ -160,10 +177,16 @@ class extends Component {
                         @endif
                         <div class="min-w-0 flex-1">
                             <p class="text-sm font-medium text-zinc-700 dark:text-zinc-300">{{ basename($lancamento->anexo_path) }}</p>
-                            <div class="mt-1 flex gap-2">
+                            <div class="mt-1 flex flex-wrap gap-2">
                                 <a href="{{ route('lancamentos.anexo', $lancamento) }}{{ $ehImagem ? '?inline=1' : '' }}" target="_blank" class="text-sm text-zinc-600 underline hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">
                                     {{ $ehImagem ? 'Ver imagem' : 'Baixar PDF' }}
                                 </a>
+                                @role('admin')
+                                <button type="button" wire:click="removeAnexo" wire:confirm="Remover este anexo? O arquivo será excluído permanentemente."
+                                    class="text-sm text-red-600 underline hover:text-red-800 dark:text-red-400 dark:hover:text-red-300">
+                                    Remover anexo
+                                </button>
+                                @endrole
                             </div>
                         </div>
                     </div>

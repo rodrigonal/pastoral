@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Benfeitor extends Model
@@ -14,6 +15,7 @@ class Benfeitor extends Model
 
     protected $fillable = [
         'nome',
+        'membro_id',
         'ativo',
         'observacao',
     ];
@@ -28,5 +30,10 @@ class Benfeitor extends Model
     public function lancamentos(): HasMany
     {
         return $this->hasMany(Lancamento::class);
+    }
+
+    public function membro(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'membro_id');
     }
 }

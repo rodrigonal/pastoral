@@ -34,7 +34,7 @@ class CreateLancamentoAction
             'observacao' => $data['observacao'] ?? null,
             'anexo_path' => $anexoPath,
             'user_id' => $userId,
-            'benfeitor_id' => $this->resolveBenfeitorId($data),
+            'benfeitor_id' => $this->resolveBenfeitorId($data, $userId),
             'classificado' => $classificado,
             'is_historico' => (bool) ($data['is_historico'] ?? false),
             'historico_bancario' => $data['historico_bancario'] ?? null,
@@ -61,6 +61,7 @@ class CreateLancamentoAction
             'anexo_path' => ['nullable', 'string', 'max:500'],
             'benfeitor_id' => ['nullable', 'exists:benfeitores,id'],
             'novo_benfeitor_nome' => ['nullable', 'string', 'max:255'],
+            'membro_id' => ['nullable', 'exists:users,id'],
             'classificado' => ['nullable', 'boolean'],
             'is_historico' => ['nullable', 'boolean'],
             'historico_bancario' => ['nullable', 'string', 'max:255'],
@@ -102,7 +103,7 @@ class CreateLancamentoAction
     /**
      * @param  array<string, mixed>  $data
      */
-    public function resolveBenfeitorId(array $data): ?int
+    public function resolveBenfeitorId(array $data, ?int $userId = null): ?int
     {
         if (! empty($data['benfeitor_id'])) {
             return (int) $data['benfeitor_id'];
@@ -113,9 +114,11 @@ class CreateLancamentoAction
             return null;
         }
 
+        $membroId = $data['membro_id'] ?? $userId;
+
         return Benfeitor::firstOrCreate(
             ['nome' => $nome],
-            ['ativo' => true]
+            ['ativo' => true, 'membro_id' => $membroId]
         )->id;
     }
 }

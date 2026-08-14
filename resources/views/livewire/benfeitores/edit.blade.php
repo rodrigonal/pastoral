@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Benfeitor;
+use App\Models\User;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Volt\Component;
@@ -11,6 +12,7 @@ class extends Component {
     public Benfeitor $benfeitor;
 
     public string $nome = '';
+    public string $membro_id = '';
     public ?string $observacao = null;
     public bool $ativo = true;
 
@@ -18,6 +20,7 @@ class extends Component {
     {
         $this->benfeitor = $benfeitor;
         $this->nome = $benfeitor->nome;
+        $this->membro_id = $benfeitor->membro_id ? (string) $benfeitor->membro_id : '';
         $this->observacao = $benfeitor->observacao;
         $this->ativo = (bool) $benfeitor->ativo;
     }
@@ -28,18 +31,27 @@ class extends Component {
 
         $this->validate([
             'nome' => ['required', 'string', 'max:255', 'unique:benfeitores,nome,'.$this->benfeitor->id],
+            'membro_id' => ['required', 'exists:users,id'],
             'observacao' => ['nullable', 'string'],
             'ativo' => ['boolean'],
         ]);
 
         $this->benfeitor->update([
             'nome' => trim($this->nome),
+            'membro_id' => (int) $this->membro_id,
             'observacao' => $this->observacao,
             'ativo' => $this->ativo,
         ]);
 
         session()->flash('message', 'Benfeitor atualizado com sucesso.');
         $this->redirect(route('benfeitores.index'), navigate: true);
+    }
+
+    public function with(): array
+    {
+        return [
+            'membros' => User::query()->orderBy('name')->get(['id', 'name']),
+        ];
     }
 }; ?>
 
@@ -55,6 +67,16 @@ class extends Component {
                 <label class="mb-1 block text-sm font-medium">Nome *</label>
                 <input type="text" wire:model="nome" class="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-700" required>
                 @error('nome') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+            </div>
+            <div>
+                <label class="mb-1 block text-sm font-medium">Membro da comunidade *</label>
+                <select wire:model="membro_id" class="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-700" required>
+                    <option value="">Selecione</option>
+                    @foreach($membros as $membro)
+                        <option value="{{ $membro->id }}">{{ $membro->name }}</option>
+                    @endforeach
+                </select>
+                @error('membro_id') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
             </div>
             <div>
                 <label class="mb-1 block text-sm font-medium">Observação</label>

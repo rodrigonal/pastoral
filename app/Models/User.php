@@ -69,4 +69,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(\App\Models\Lancamento::class);
     }
+
+    public function benfeitores(): HasMany
+    {
+        return $this->hasMany(Benfeitor::class, 'membro_id');
+    }
 }

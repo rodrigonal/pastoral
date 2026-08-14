@@ -45,6 +45,7 @@ it('cria arrecadacao cadastrando novo benfeitor pelo nome', function () {
     ], $this->user->id);
 
     expect($lancamento->benfeitor->nome)->toBe('Maria da Silva');
+    expect($lancamento->benfeitor->membro_id)->toBe($this->user->id);
     expect(Benfeitor::where('nome', 'Maria da Silva')->exists())->toBeTrue();
 });
 

@@ -20,16 +20,27 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('lancamentos/{lancamento}/anexo', [\App\Http\Controllers\LancamentoAnexoController::class, 'download'])->name('lancamentos.anexo');
     });
 
-    Route::middleware(['permission:benfeitores.view'])->group(function () {
-        Volt::route('benfeitores', 'benfeitores.index')->name('benfeitores.index');
-    });
-
     Route::middleware(['permission:benfeitores.create'])->group(function () {
         Volt::route('benfeitores/create', 'benfeitores.create')->name('benfeitores.create');
     });
 
+    Route::middleware(['permission:benfeitores.view'])->group(function () {
+        Volt::route('benfeitores', 'benfeitores.index')->name('benfeitores.index');
+        Volt::route('benfeitores/{benfeitor}', 'benfeitores.show')->name('benfeitores.show');
+    });
+
     Route::middleware(['permission:benfeitores.update'])->group(function () {
         Volt::route('benfeitores/{benfeitor}/edit', 'benfeitores.edit')->name('benfeitores.edit');
+    });
+
+    Route::middleware(['permission:pastorais.create'])->group(function () {
+        Volt::route('pastorais/create', 'pastorais.create')->name('pastorais.create');
+    });
+
+    Route::middleware(['permission:pastorais.view'])->group(function () {
+        Volt::route('pastorais', 'pastorais.index')->name('pastorais.index');
+        Volt::route('pastorais/{pastoral}/arte', 'pastorais.arte')->name('pastorais.arte');
+        Volt::route('pastorais/{pastoral}', 'pastorais.show')->name('pastorais.show');
     });
 
     Route::middleware(['permission:lancamentos.create'])->group(function () {

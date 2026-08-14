@@ -35,7 +35,7 @@ class UpdateLancamentoAction
             'descricao' => $data['descricao'],
             'observacao' => $data['observacao'] ?? null,
             'anexo_path' => $data['anexo_path'] ?? $lancamento->anexo_path,
-            'benfeitor_id' => $createAction->resolveBenfeitorId($merged),
+            'benfeitor_id' => $createAction->resolveBenfeitorId($merged, $lancamento->user_id),
             'classificado' => array_key_exists('classificado', $data)
                 ? (bool) $data['classificado']
                 : $lancamento->classificado,

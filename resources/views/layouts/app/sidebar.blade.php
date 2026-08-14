@@ -28,6 +28,11 @@
                         {{ __('Benfeitores') }}
                     </flux:sidebar.item>
                     @endcan
+                    @can('pastorais.view')
+                    <flux:sidebar.item icon="camera" :href="route('pastorais.index')" :current="request()->routeIs('pastorais.*')" wire:navigate>
+                        {{ __('Pastoral de Rua') }}
+                    </flux:sidebar.item>
+                    @endcan
                     @can('prestacao-contas.view')
                     <flux:sidebar.item icon="document-text" :href="route('prestacao-contas.index')" :current="request()->routeIs('prestacao-contas.*')" wire:navigate>
                         {{ __('Prestação de Contas') }}

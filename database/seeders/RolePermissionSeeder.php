@@ -19,6 +19,10 @@ class RolePermissionSeeder extends Seeder
             'benfeitores.create',
             'benfeitores.update',
             'benfeitores.delete',
+            'pastorais.view',
+            'pastorais.create',
+            'pastorais.update',
+            'pastorais.delete',
             'prestacao-contas.view',
             'prestacao-contas.export',
             'users.view',
@@ -38,14 +42,19 @@ class RolePermissionSeeder extends Seeder
         $tesouraria->givePermissionTo([
             'lancamentos.view', 'lancamentos.create', 'lancamentos.update', 'lancamentos.delete',
             'benfeitores.view', 'benfeitores.create', 'benfeitores.update', 'benfeitores.delete',
+            'pastorais.view', 'pastorais.create', 'pastorais.update', 'pastorais.delete',
             'prestacao-contas.view', 'prestacao-contas.export',
             'users.view',
         ]);
 
         $visualizador = Role::firstOrCreate(['name' => 'visualizador']);
-        $visualizador->givePermissionTo(['lancamentos.view', 'benfeitores.view', 'prestacao-contas.view', 'users.view']);
+        $visualizador->givePermissionTo(['lancamentos.view', 'benfeitores.view', 'pastorais.view', 'prestacao-contas.view', 'users.view']);
 
         $coord = Role::firstOrCreate(['name' => 'coord']);
-        $coord->givePermissionTo(['lancamentos.view', 'benfeitores.view', 'prestacao-contas.view', 'users.view']);
+        $coord->givePermissionTo([
+            'lancamentos.view', 'benfeitores.view',
+            'pastorais.view', 'pastorais.create', 'pastorais.update', 'pastorais.delete',
+            'prestacao-contas.view', 'users.view',
+        ]);
     }
 }

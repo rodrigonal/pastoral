@@ -41,7 +41,8 @@ class extends Component {
         return [
             'saldoAcumulado' => $saldoService->saldoAcumulado(),
             'saldoEmMaosAtual' => $saldoService->saldoEmMaos(),
-            'saldoEmContaCs' => $saldoService->saldoEmContaCs(),
+            'saldoEmConta' => $saldoService->saldoEmConta(),
+            'saldoLegado' => $saldoService->saldoLegado(),
         ];
     }
 }; ?>
@@ -58,27 +59,34 @@ class extends Component {
         </div>
     @endif
 
-    <div class="grid gap-4 md:grid-cols-3">
+    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">
             <h3 class="text-sm font-medium text-zinc-500 dark:text-zinc-400">Saldo acumulado</h3>
             <p class="mt-2 text-2xl font-semibold {{ $saldoAcumulado >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400' }}">
                 R$ {{ number_format($saldoAcumulado, 2, ',', '.') }}
             </p>
-            <p class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">Pelo livro caixa (lançamentos, exceto reembolsos).</p>
+            <p class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">Livro caixa da conta atual (lançamentos novos, exceto reembolsos).</p>
         </div>
         <div class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">
             <h3 class="text-sm font-medium text-zinc-500 dark:text-zinc-400">Saldo em mãos</h3>
             <p class="mt-2 text-2xl font-semibold text-amber-600 dark:text-amber-400">
                 R$ {{ number_format($saldoEmMaosAtual, 2, ',', '.') }}
             </p>
-            <p class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">Dinheiro em espécie ainda não repassado (valor informado manualmente).</p>
+            <p class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">Dinheiro em espécie ainda não depositado (valor informado manualmente).</p>
         </div>
         <div class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">
-            <h3 class="text-sm font-medium text-zinc-500 dark:text-zinc-400">Saldo em conta (Centro Social)</h3>
-            <p class="mt-2 text-2xl font-semibold {{ $saldoEmContaCs >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400' }}">
-                R$ {{ number_format($saldoEmContaCs, 2, ',', '.') }}
+            <h3 class="text-sm font-medium text-zinc-500 dark:text-zinc-400">Saldo em conta</h3>
+            <p class="mt-2 text-2xl font-semibold {{ $saldoEmConta >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400' }}">
+                R$ {{ number_format($saldoEmConta, 2, ',', '.') }}
             </p>
-            <p class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">Calculado: saldo acumulado − saldo em mãos.</p>
+            <p class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">Conta Bradesco em uso. Calculado: saldo acumulado − saldo em mãos.</p>
+        </div>
+        <div class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">
+            <h3 class="text-sm font-medium text-zinc-500 dark:text-zinc-400">Saldo legado</h3>
+            <p class="mt-2 text-2xl font-semibold text-zinc-600 dark:text-zinc-300">
+                R$ {{ number_format($saldoLegado, 2, ',', '.') }}
+            </p>
+            <p class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">Conta antiga (CS), inacessível. Não entra no saldo da conta atual.</p>
         </div>
     </div>
 

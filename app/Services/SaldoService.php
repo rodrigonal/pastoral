@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Builder;
 class SaldoService
 {
     /**
-     * Lançamentos da conta atual (exclui histórico da conta antiga).
+     * Lançamentos da conta atual (exclui legado da conta antiga).
      */
     public function queryContaAtual(): Builder
     {
@@ -20,14 +20,50 @@ class SaldoService
     }
 
     /**
+     * Lançamentos da conta antiga (CS), inacessível — só histórico.
+     */
+    public function queryLegado(): Builder
+    {
+        return Lancamento::query()->historico();
+    }
+
+    /**
      * Saldo acumulado até determinada data (inclusive).
      * Reembolsos não afetam o saldo (apenas controle no relatório).
-     * Lançamentos da conta antiga (histórico) não entram no cálculo.
+     * Lançamentos legado da conta antiga não entram no cálculo.
      */
     public function saldoAcumulado(?Carbon $ate = null): float
     {
-        $query = $this->queryContaAtual();
+        return $this->saldoDaQuery($this->queryContaAtual(), $ate);
+    }
 
+    /**
+     * Saldo do livro da conta antiga (Centro Social), que ficou inacessível.
+     * Não entra no saldo da conta Bradesco em uso.
+     */
+    public function saldoLegado(?Carbon $ate = null): float
+    {
+        return $this->saldoDaQuery($this->queryLegado(), $ate);
+    }
+
+    /**
+     * Valor em espécie informado manualmente (não entra nos lançamentos).
+     */
+    public function saldoEmMaos(): float
+    {
+        return round((float) ControleSaldo::registro()->saldo_em_maos, 2);
+    }
+
+    /**
+     * Saldo na conta bancária atual = saldo acumulado pelos lançamentos novos − saldo em mãos.
+     */
+    public function saldoEmConta(?Carbon $ate = null): float
+    {
+        return round($this->saldoAcumulado($ate) - $this->saldoEmMaos(), 2);
+    }
+
+    private function saldoDaQuery(Builder $query, ?Carbon $ate = null): float
+    {
         if ($ate !== null) {
             $query->whereDate('data', '<=', $ate->format('Y-m-d'));
         }
@@ -41,24 +77,7 @@ class SaldoService
             ->where('categoria', '!=', CategoriaLancamentoEnum::Reembolso)
             ->sum('valor');
 
-        return round($entradas - $saidas, 2);
-    }
-
-    /**
-     * Valor em espécie informado manualmente (não entra nos lançamentos).
-     */
-    public function saldoEmMaos(): float
-    {
-        return round((float) ControleSaldo::registro()->saldo_em_maos, 2);
-    }
-
-    /**
-     * Saldo depositado no Centro Social = saldo acumulado pelos lançamentos − saldo em mãos.
-     * Usa o saldo acumulado na mesma data de referência e o saldo em mãos atual cadastrado.
-     */
-    public function saldoEmContaCs(?Carbon $ate = null): float
-    {
-        return round($this->saldoAcumulado($ate) - $this->saldoEmMaos(), 2);
+        return round((float) $entradas - (float) $saidas, 2);
     }
 
     /**

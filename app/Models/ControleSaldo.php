@@ -10,12 +10,14 @@ class ControleSaldo extends Model
 
     protected $fillable = [
         'saldo_em_maos',
+        'saldo_legado',
     ];
 
     protected function casts(): array
     {
         return [
             'saldo_em_maos' => 'decimal:2',
+            'saldo_legado' => 'decimal:2',
         ];
     }
 
@@ -26,7 +28,7 @@ class ControleSaldo extends Model
     {
         return static::query()->firstOrCreate(
             ['id' => 1],
-            ['saldo_em_maos' => 0]
+            ['saldo_em_maos' => 0, 'saldo_legado' => 0]
         );
     }
 }

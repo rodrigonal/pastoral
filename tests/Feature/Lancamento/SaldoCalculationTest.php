@@ -109,7 +109,7 @@ it('reembolso nao afeta o saldo', function () {
     expect($this->saldoService->saldoAcumulado())->toBe(700.0);
 });
 
-it('saldo em conta cs e saldo em maos', function () {
+it('saldo em conta e saldo em maos', function () {
     $user = User::factory()->create();
     $benfeitor = Benfeitor::factory()->create();
 
@@ -136,10 +136,10 @@ it('saldo em conta cs e saldo em maos', function () {
 
     expect($this->saldoService->saldoAcumulado())->toBe(700.0);
     expect($this->saldoService->saldoEmMaos())->toBe(200.0);
-    expect($this->saldoService->saldoEmContaCs())->toBe(500.0);
+    expect($this->saldoService->saldoEmConta())->toBe(500.0);
 });
 
-it('ignora lancamentos da conta antiga no saldo atual', function () {
+it('separa saldo legado da conta antiga do saldo da conta atual', function () {
     $user = User::factory()->create();
     $benfeitor = Benfeitor::factory()->create();
 
@@ -166,4 +166,6 @@ it('ignora lancamentos da conta antiga no saldo atual', function () {
     ]);
 
     expect($this->saldoService->saldoAcumulado())->toBe(200.0);
+    expect($this->saldoService->saldoLegado())->toBe(5000.0);
+    expect($this->saldoService->saldoEmConta())->toBe(200.0);
 });

@@ -123,7 +123,7 @@ class extends Component {
                 <select wire:model.live="filtroStatus" class="rounded border border-zinc-300 px-2 py-1 dark:border-zinc-600 dark:bg-zinc-700">
                     <option value="conta_atual">Conta atual</option>
                     <option value="pendentes">Pendentes de classificação</option>
-                    <option value="historico">Histórico (conta antiga)</option>
+                    <option value="historico">Legado (conta antiga)</option>
                     <option value="todos">Todos</option>
                 </select>
             </div>
@@ -154,7 +154,7 @@ class extends Component {
                                     <span class="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">Pendente</span>
                                 @endif
                                 @if($lancamento->is_historico)
-                                    <span class="ml-1 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300">Histórico</span>
+                                    <span class="ml-1 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300">Legado</span>
                                 @endif
                             </td>
                             <td class="px-4 py-2">

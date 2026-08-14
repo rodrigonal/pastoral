@@ -47,7 +47,8 @@ class extends Component {
             'totalSaidas' => $saldoService->totalSaidasPeriodo($inicio, $fim),
             'saldoAtual' => $saldoService->saldoAcumulado(),
             'saldoEmMaos' => $saldoService->saldoEmMaos(),
-            'saldoEmContaCs' => $saldoService->saldoEmContaCs(),
+            'saldoEmConta' => $saldoService->saldoEmConta(),
+            'saldoLegado' => $saldoService->saldoLegado(),
             'saldoPeriodo' => $saldoService->saldoPeriodo($inicio, $fim),
             'ultimosLancamentos' => \App\Models\Lancamento::with(['user', 'benfeitor'])
                 ->contaAtual()
@@ -121,9 +122,15 @@ class extends Component {
             </p>
         </div>
         <div class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">
-            <h3 class="text-sm font-medium text-zinc-500 dark:text-zinc-400">Saldo em conta (CS)</h3>
-            <p class="mt-2 text-2xl font-semibold {{ $saldoEmContaCs >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400' }}">
-                R$ {{ number_format($saldoEmContaCs, 2, ',', '.') }}
+            <h3 class="text-sm font-medium text-zinc-500 dark:text-zinc-400">Saldo em conta</h3>
+            <p class="mt-2 text-2xl font-semibold {{ $saldoEmConta >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400' }}">
+                R$ {{ number_format($saldoEmConta, 2, ',', '.') }}
+            </p>
+        </div>
+        <div class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">
+            <h3 class="text-sm font-medium text-zinc-500 dark:text-zinc-400">Saldo legado</h3>
+            <p class="mt-2 text-2xl font-semibold text-zinc-600 dark:text-zinc-300">
+                R$ {{ number_format($saldoLegado, 2, ',', '.') }}
             </p>
         </div>
     </div>

@@ -43,16 +43,28 @@ it('classifica lancamentos do extrato como conta atual e anteriores como legado'
     ]);
     $legadoAposMarco->forceFill(['created_at' => '2026-04-15 10:00:00'])->saveQuietly();
 
+    $legadoHoje = Lancamento::create([
+        'data' => '2026-07-20',
+        'tipo' => TipoLancamentoEnum::Entrada,
+        'categoria' => CategoriaLancamentoEnum::Arrecadacao,
+        'valor' => 200,
+        'descricao' => 'Doação CS cadastrada recentemente',
+        'user_id' => $user->id,
+        'benfeitor_id' => $benfeitor->id,
+        'is_historico' => false,
+    ]);
+
     $this->seed(ExtratoContaAtualSeeder::class);
     $this->seed(ClassificarLancamentosLegadoSeeder::class);
 
     expect($legadoAntigo->fresh()->is_historico)->toBeTrue();
     expect($legadoAposMarco->fresh()->is_historico)->toBeTrue();
-    expect(Lancamento::historico()->count())->toBe(2);
+    expect($legadoHoje->fresh()->is_historico)->toBeTrue();
+    expect(Lancamento::historico()->count())->toBe(3);
 
     $saldo = app(SaldoService::class);
-    expect($saldo->saldoLegado())->toBe(1410.43);
+    expect($saldo->saldoLegado())->toBe(1610.43);
     expect($saldo->saldoAcumulado())->toBe(1182.95);
     expect($saldo->saldoEmConta())->toBe(1182.95);
-    expect((float) ControleSaldo::registro()->saldo_legado)->toBe(1410.43);
+    expect((float) ControleSaldo::registro()->saldo_legado)->toBe(1610.43);
 });

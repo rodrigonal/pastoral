@@ -12,46 +12,14 @@ use Illuminate\Support\Facades\Schema;
 class ClassificacaoContaLancamentos
 {
     /**
-     * A partir desta data o sistema passou a usar a conta Bradesco atual.
-     * Lançamentos manuais criados antes disso (sem extrato) são da conta antiga do CS.
-     */
-    public const INICIO_CONTA_ATUAL = '2026-08-13';
-
-    /**
-     * Marca lançamentos da conta Bradesco atual vs. conta antiga do CS.
-     *
-     * Conta atual: documento do extrato Bradesco, ou lançamento lançado depois
-     * da virada de conta (cadastro manual na conta nova).
-     * Conta antiga: todo o restante.
+     * Conta atual = lançamentos do extrato Bradesco (documento ou histórico bancário).
+     * Todo o restante é saldo antigo da conta do CS.
      *
      * @return array{conta_atual: int, legado: int, saldo_legado: float}
      */
     public static function executar(): array
     {
-        $documentos = self::documentosExtratoAtual();
-
-        $idsExtrato = Lancamento::query()
-            ->whereNotNull('documento')
-            ->get(['id', 'documento'])
-            ->filter(fn (Lancamento $l) => in_array(ltrim((string) $l->documento, '0'), $documentos, true))
-            ->pluck('id')
-            ->all();
-
-        $idsDoBanco = Lancamento::query()
-            ->whereNotNull('historico_bancario')
-            ->where('historico_bancario', '!=', '')
-            ->pluck('id')
-            ->all();
-
-        $idsNovosManuais = Lancamento::query()
-            ->where('created_at', '>=', self::INICIO_CONTA_ATUAL)
-            ->where(function ($q) {
-                $q->whereNull('historico_bancario')->orWhere('historico_bancario', '');
-            })
-            ->pluck('id')
-            ->all();
-
-        $idsContaAtual = array_values(array_unique(array_merge($idsExtrato, $idsDoBanco, $idsNovosManuais)));
+        $idsContaAtual = self::idsContaAtual();
 
         $idsLegado = Lancamento::query()
             ->when($idsContaAtual !== [], fn ($q) => $q->whereNotIn('id', $idsContaAtual))
@@ -74,6 +42,29 @@ class ClassificacaoContaLancamentos
             'legado' => count($idsLegado),
             'saldo_legado' => $saldoLegado,
         ];
+    }
+
+    /**
+     * @return list<int>
+     */
+    public static function idsContaAtual(): array
+    {
+        $documentos = self::documentosExtratoAtual();
+
+        $idsPorDocumento = Lancamento::query()
+            ->whereNotNull('documento')
+            ->get(['id', 'documento'])
+            ->filter(fn (Lancamento $l) => in_array(ltrim((string) $l->documento, '0'), $documentos, true))
+            ->pluck('id')
+            ->all();
+
+        $idsDoExtrato = Lancamento::query()
+            ->whereNotNull('historico_bancario')
+            ->where('historico_bancario', '!=', '')
+            ->pluck('id')
+            ->all();
+
+        return array_values(array_unique(array_merge($idsPorDocumento, $idsDoExtrato)));
     }
 
     /**

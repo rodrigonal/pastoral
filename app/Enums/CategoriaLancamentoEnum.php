@@ -19,8 +19,19 @@ enum CategoriaLancamentoEnum: string
         };
     }
 
-    public function requerSegmento(): bool
+    public function requerBenfeitor(): bool
     {
         return $this === self::Arrecadacao;
+    }
+
+    public function label(): string
+    {
+        return match ($this) {
+            self::Arrecadacao => 'Arrecadação',
+            self::Repasse => 'Repasse',
+            self::Compra => 'Compra',
+            self::Reembolso => 'Reembolso',
+            self::Outro => 'Outro',
+        };
     }
 }

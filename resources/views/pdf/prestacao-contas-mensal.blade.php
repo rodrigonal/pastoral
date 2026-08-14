@@ -33,7 +33,7 @@
                 <th>Data</th>
                 <th>Categoria</th>
                 <th>Descrição</th>
-                <th>Segmento</th>
+                <th>Benfeitor</th>
                 <th style="text-align: right;">Valor</th>
             </tr>
         </thead>
@@ -43,7 +43,7 @@
                     <td>{{ $lancamento->data->format('d/m/Y') }}</td>
                     <td>{{ ucfirst($lancamento->categoria->value) }}</td>
                     <td>{{ $lancamento->descricao }}</td>
-                    <td>{{ $lancamento->segmentos->pluck('nome')->implode(', ') ?: '-' }}</td>
+                    <td>{{ $lancamento->benfeitor?->nome ?: '-' }}</td>
                     <td style="text-align: right;" class="valor-entrada">R$ {{ number_format($lancamento->valor, 2, ',', '.') }}</td>
                 </tr>
             @empty

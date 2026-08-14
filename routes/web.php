@@ -12,11 +12,24 @@ Route::get('/', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware(['role:admin|tesouraria|visualizador|coord'])->group(function () {
         Volt::route('dashboard', 'dashboard')->name('dashboard');
+        Volt::route('controle-saldos', 'controle-saldos')->name('controle-saldos');
     });
 
     Route::middleware(['permission:lancamentos.view'])->group(function () {
         Volt::route('lancamentos', 'lancamentos.index')->name('lancamentos.index');
         Route::get('lancamentos/{lancamento}/anexo', [\App\Http\Controllers\LancamentoAnexoController::class, 'download'])->name('lancamentos.anexo');
+    });
+
+    Route::middleware(['permission:benfeitores.view'])->group(function () {
+        Volt::route('benfeitores', 'benfeitores.index')->name('benfeitores.index');
+    });
+
+    Route::middleware(['permission:benfeitores.create'])->group(function () {
+        Volt::route('benfeitores/create', 'benfeitores.create')->name('benfeitores.create');
+    });
+
+    Route::middleware(['permission:benfeitores.update'])->group(function () {
+        Volt::route('benfeitores/{benfeitor}/edit', 'benfeitores.edit')->name('benfeitores.edit');
     });
 
     Route::middleware(['permission:lancamentos.create'])->group(function () {

@@ -4,6 +4,7 @@ namespace App\Actions\Lancamento;
 
 use App\Enums\CategoriaLancamentoEnum;
 use App\Enums\TipoLancamentoEnum;
+use App\Models\Benfeitor;
 use App\Models\Lancamento;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Validator;
@@ -20,6 +21,10 @@ class CreateLancamentoAction
             $anexoPath = $data['anexo']->store('lancamentos', 'local');
         }
 
+        $classificado = array_key_exists('classificado', $data)
+            ? (bool) $data['classificado']
+            : true;
+
         $lancamento = Lancamento::create([
             'data' => $data['data'],
             'tipo' => $data['tipo'],
@@ -29,12 +34,12 @@ class CreateLancamentoAction
             'observacao' => $data['observacao'] ?? null,
             'anexo_path' => $anexoPath,
             'user_id' => $userId,
+            'benfeitor_id' => $this->resolveBenfeitorId($data),
+            'classificado' => $classificado,
+            'is_historico' => (bool) ($data['is_historico'] ?? false),
+            'historico_bancario' => $data['historico_bancario'] ?? null,
+            'documento' => $data['documento'] ?? null,
         ]);
-
-        $segmentoIds = $data['segmento_ids'] ?? [];
-        if (! empty($segmentoIds)) {
-            $lancamento->segmentos()->sync($segmentoIds);
-        }
 
         return $lancamento;
     }
@@ -54,23 +59,36 @@ class CreateLancamentoAction
             'observacao' => ['nullable', 'string'],
             'anexo' => ['nullable', 'file', 'mimes:pdf,jpeg,jpg,png', 'max:5120'],
             'anexo_path' => ['nullable', 'string', 'max:500'],
-            'segmento_ids' => ['nullable', 'array'],
-            'segmento_ids.*' => ['exists:segmentos,id'],
+            'benfeitor_id' => ['nullable', 'exists:benfeitores,id'],
+            'novo_benfeitor_nome' => ['nullable', 'string', 'max:255'],
+            'classificado' => ['nullable', 'boolean'],
+            'is_historico' => ['nullable', 'boolean'],
+            'historico_bancario' => ['nullable', 'string', 'max:255'],
+            'documento' => ['nullable', 'string', 'max:50'],
         ];
 
         $validator = Validator::make($data, $rules);
 
         $validator->after(function ($validator) use ($data) {
             $categoria = $data['categoria'] ?? null;
+            $classificado = array_key_exists('classificado', $data)
+                ? (bool) $data['classificado']
+                : true;
+
             if ($categoria === CategoriaLancamentoEnum::Arrecadacao->value) {
-                $segmentoIds = $data['segmento_ids'] ?? [];
-                if (empty($segmentoIds) || (is_array($segmentoIds) && count(array_filter($segmentoIds)) === 0)) {
-                    $validator->errors()->add('segmento_ids', 'Pelo menos um segmento é obrigatório para arrecadação.');
-                }
                 if (($data['tipo'] ?? '') !== TipoLancamentoEnum::Entrada->value) {
                     $validator->errors()->add('tipo', 'Arrecadação deve ser tipo entrada.');
                 }
+
+                if ($classificado) {
+                    $benfeitorId = $data['benfeitor_id'] ?? null;
+                    $novoNome = trim((string) ($data['novo_benfeitor_nome'] ?? ''));
+                    if (empty($benfeitorId) && $novoNome === '') {
+                        $validator->errors()->add('benfeitor_id', 'Informe o benfeitor da arrecadação.');
+                    }
+                }
             }
+
             if (in_array($categoria, [CategoriaLancamentoEnum::Repasse->value, CategoriaLancamentoEnum::Compra->value, CategoriaLancamentoEnum::Reembolso->value])) {
                 if (($data['tipo'] ?? '') !== TipoLancamentoEnum::Saida->value) {
                     $validator->errors()->add('tipo', 'Esta categoria deve ser tipo saída.');
@@ -79,5 +97,25 @@ class CreateLancamentoAction
         });
 
         $validator->validate();
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function resolveBenfeitorId(array $data): ?int
+    {
+        if (! empty($data['benfeitor_id'])) {
+            return (int) $data['benfeitor_id'];
+        }
+
+        $nome = trim((string) ($data['novo_benfeitor_nome'] ?? ''));
+        if ($nome === '') {
+            return null;
+        }
+
+        return Benfeitor::firstOrCreate(
+            ['nome' => $nome],
+            ['ativo' => true]
+        )->id;
     }
 }

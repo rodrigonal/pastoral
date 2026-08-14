@@ -1,9 +1,8 @@
 <?php
 
 use App\Enums\CategoriaLancamentoEnum;
-use App\Enums\TipoLancamentoEnum;
+use App\Models\Benfeitor;
 use App\Models\Lancamento;
-use App\Models\Segmento;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Volt\Component;
@@ -18,17 +17,19 @@ class extends Component {
     public string $filtroDataFim = '';
     public string $filtroTipo = '';
     public string $filtroCategoria = '';
-    public ?int $filtroSegmentoId = null;
+    public ?int $filtroBenfeitorId = null;
+    public string $filtroStatus = 'conta_atual';
 
     public function mount(): void
     {
-        $this->filtroDataInicio = now()->startOfMonth()->format('Y-m-d');
+        $this->filtroDataInicio = now()->startOfYear()->format('Y-m-d');
         $this->filtroDataFim = now()->endOfMonth()->format('Y-m-d');
+        $this->filtroStatus = request()->query('status', 'conta_atual');
     }
 
     public function with(): array
     {
-        $query = Lancamento::with(['user', 'segmentos'])->orderByDesc('data')->orderByDesc('id');
+        $query = Lancamento::with(['user', 'benfeitor'])->orderByDesc('data')->orderByDesc('id');
 
         if ($this->filtroDataInicio) {
             $query->whereDate('data', '>=', $this->filtroDataInicio);
@@ -42,13 +43,21 @@ class extends Component {
         if ($this->filtroCategoria) {
             $query->where('categoria', $this->filtroCategoria);
         }
-        if ($this->filtroSegmentoId) {
-            $query->whereHas('segmentos', fn ($q) => $q->where('segmentos.id', $this->filtroSegmentoId));
+        if ($this->filtroBenfeitorId) {
+            $query->where('benfeitor_id', $this->filtroBenfeitorId);
         }
 
+        match ($this->filtroStatus) {
+            'pendentes' => $query->pendentes(),
+            'historico' => $query->historico(),
+            'conta_atual' => $query->contaAtual(),
+            default => $query,
+        };
+
         return [
-            'lancamentos' => $query->paginate(15),
-            'segmentos' => Segmento::where('ativo', true)->orderBy('ordem')->get(),
+            'lancamentos' => $query->paginate(20),
+            'benfeitores' => Benfeitor::where('ativo', true)->orderBy('nome')->get(),
+            'pendentesCount' => Lancamento::pendentes()->count(),
         ];
     }
 }; ?>
@@ -62,6 +71,16 @@ class extends Component {
         </a>
         @endcan
     </div>
+
+    @if (session('message'))
+        <div class="rounded-lg bg-green-50 px-4 py-3 text-sm text-green-800 dark:bg-green-900/30 dark:text-green-400">{{ session('message') }}</div>
+    @endif
+
+    @if($pendentesCount > 0 && $filtroStatus !== 'pendentes')
+        <button type="button" wire:click="$set('filtroStatus', 'pendentes')" class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300">
+            {{ $pendentesCount }} lançamento(s) pendente(s) de classificação — clique para filtrar.
+        </button>
+    @endif
 
     <div class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">
         <div class="mb-4 flex flex-wrap gap-4">
@@ -86,17 +105,26 @@ class extends Component {
                 <select wire:model.live="filtroCategoria" class="rounded border border-zinc-300 px-2 py-1 dark:border-zinc-600 dark:bg-zinc-700">
                     <option value="">Todas</option>
                     @foreach(CategoriaLancamentoEnum::cases() as $cat)
-                        <option value="{{ $cat->value }}">{{ ucfirst($cat->value) }}</option>
+                        <option value="{{ $cat->value }}">{{ $cat->label() }}</option>
                     @endforeach
                 </select>
             </div>
             <div>
-                <label class="mb-1 block text-sm font-medium">Segmento</label>
-                <select wire:model.live="filtroSegmentoId" class="rounded border border-zinc-300 px-2 py-1 dark:border-zinc-600 dark:bg-zinc-700">
+                <label class="mb-1 block text-sm font-medium">Benfeitor</label>
+                <select wire:model.live="filtroBenfeitorId" class="rounded border border-zinc-300 px-2 py-1 dark:border-zinc-600 dark:bg-zinc-700">
                     <option value="">Todos</option>
-                    @foreach($segmentos as $seg)
-                        <option value="{{ $seg->id }}">{{ $seg->nome }}</option>
+                    @foreach($benfeitores as $benfeitor)
+                        <option value="{{ $benfeitor->id }}">{{ $benfeitor->nome }}</option>
                     @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="mb-1 block text-sm font-medium">Origem</label>
+                <select wire:model.live="filtroStatus" class="rounded border border-zinc-300 px-2 py-1 dark:border-zinc-600 dark:bg-zinc-700">
+                    <option value="conta_atual">Conta atual</option>
+                    <option value="pendentes">Pendentes de classificação</option>
+                    <option value="historico">Histórico (conta antiga)</option>
+                    <option value="todos">Todos</option>
                 </select>
             </div>
         </div>
@@ -107,9 +135,8 @@ class extends Component {
                     <tr>
                         <th class="px-4 py-2 text-left text-xs font-medium text-zinc-500">Data</th>
                         <th class="px-4 py-2 text-left text-xs font-medium text-zinc-500">Tipo</th>
-                        <th class="px-4 py-2 text-left text-xs font-medium text-zinc-500">Categoria</th>
-                        <th class="px-4 py-2 text-left text-xs font-medium text-zinc-500">Descrição</th>
-                        <th class="px-4 py-2 text-left text-xs font-medium text-zinc-500">Segmento</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-zinc-500">Título</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-zinc-500">Benfeitor</th>
                         <th class="px-4 py-2 text-left text-xs font-medium text-zinc-500">Valor</th>
                         <th class="px-4 py-2 text-center text-xs font-medium text-zinc-500">Anexo</th>
                         <th class="px-4 py-2 text-left text-xs font-medium text-zinc-500">Ações</th>
@@ -117,16 +144,26 @@ class extends Component {
                 </thead>
                 <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
                     @forelse($lancamentos as $lancamento)
-                        <tr>
+                        <tr class="{{ ! $lancamento->classificado && ! $lancamento->is_historico ? 'bg-amber-50/60 dark:bg-amber-900/10' : '' }}">
                             <td class="px-4 py-2">{{ $lancamento->data->format('d/m/Y') }}</td>
                             <td class="px-4 py-2">
                                 <span class="rounded-full px-2 py-0.5 text-xs font-medium {{ $lancamento->tipo->value === 'entrada' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' }}">
                                     {{ ucfirst($lancamento->tipo->value) }}
                                 </span>
+                                @if(! $lancamento->classificado && ! $lancamento->is_historico)
+                                    <span class="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">Pendente</span>
+                                @endif
+                                @if($lancamento->is_historico)
+                                    <span class="ml-1 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300">Histórico</span>
+                                @endif
                             </td>
-                            <td class="px-4 py-2">{{ ucfirst($lancamento->categoria->value) }}</td>
-                            <td class="px-4 py-2">{{ $lancamento->descricao }}</td>
-                            <td class="px-4 py-2">{{ $lancamento->segmentos->pluck('nome')->implode(', ') ?: '-' }}</td>
+                            <td class="px-4 py-2">
+                                <div>{{ $lancamento->descricao }}</div>
+                                @if($lancamento->observacao)
+                                    <div class="mt-0.5 max-w-xs truncate text-xs text-zinc-500">{{ $lancamento->observacao }}</div>
+                                @endif
+                            </td>
+                            <td class="px-4 py-2">{{ $lancamento->benfeitor?->nome ?: '—' }}</td>
                             <td class="px-4 py-2 font-medium {{ $lancamento->tipo->value === 'entrada' ? 'text-green-600' : 'text-red-600' }}">
                                 R$ {{ number_format($lancamento->valor, 2, ',', '.') }}
                             </td>
@@ -150,7 +187,7 @@ class extends Component {
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-4 py-8 text-center text-zinc-500">Nenhum lançamento encontrado.</td>
+                            <td colspan="7" class="px-4 py-8 text-center text-zinc-500">Nenhum lançamento encontrado.</td>
                         </tr>
                     @endforelse
                 </tbody>

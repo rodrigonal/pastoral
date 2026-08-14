@@ -3,8 +3,8 @@
 use App\Actions\Lancamento\CreateLancamentoAction;
 use App\Enums\CategoriaLancamentoEnum;
 use App\Enums\TipoLancamentoEnum;
+use App\Models\Benfeitor;
 use App\Models\Lancamento;
-use App\Models\Segmento;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 
@@ -12,7 +12,7 @@ beforeEach(function () {
     $this->seed(RolePermissionSeeder::class);
     $this->user = User::factory()->create();
     $this->user->assignRole('tesouraria');
-    $this->segmento = Segmento::factory()->create();
+    $this->benfeitor = Benfeitor::factory()->create();
 });
 
 it('cria entrada com dados validos', function () {
@@ -23,11 +23,12 @@ it('cria entrada com dados validos', function () {
         'categoria' => CategoriaLancamentoEnum::Arrecadacao->value,
         'valor' => 150.50,
         'descricao' => 'Arrecadação teste',
-        'segmento_ids' => [$this->segmento->id],
+        'benfeitor_id' => $this->benfeitor->id,
     ], $this->user->id);
 
     expect(Lancamento::count())->toBe(1);
     expect($lancamento->tipo)->toBe(TipoLancamentoEnum::Entrada);
     expect($lancamento->categoria)->toBe(CategoriaLancamentoEnum::Arrecadacao);
     expect((float) $lancamento->valor)->toBe(150.50);
+    expect($lancamento->benfeitor_id)->toBe($this->benfeitor->id);
 });

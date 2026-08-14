@@ -15,6 +15,10 @@ class RolePermissionSeeder extends Seeder
             'lancamentos.create',
             'lancamentos.update',
             'lancamentos.delete',
+            'benfeitores.view',
+            'benfeitores.create',
+            'benfeitores.update',
+            'benfeitores.delete',
             'prestacao-contas.view',
             'prestacao-contas.export',
             'users.view',
@@ -33,14 +37,15 @@ class RolePermissionSeeder extends Seeder
         $tesouraria = Role::firstOrCreate(['name' => 'tesouraria']);
         $tesouraria->givePermissionTo([
             'lancamentos.view', 'lancamentos.create', 'lancamentos.update', 'lancamentos.delete',
+            'benfeitores.view', 'benfeitores.create', 'benfeitores.update', 'benfeitores.delete',
             'prestacao-contas.view', 'prestacao-contas.export',
             'users.view',
         ]);
 
         $visualizador = Role::firstOrCreate(['name' => 'visualizador']);
-        $visualizador->givePermissionTo(['lancamentos.view', 'prestacao-contas.view', 'users.view']);
+        $visualizador->givePermissionTo(['lancamentos.view', 'benfeitores.view', 'prestacao-contas.view', 'users.view']);
 
         $coord = Role::firstOrCreate(['name' => 'coord']);
-        $coord->givePermissionTo(['lancamentos.view', 'prestacao-contas.view', 'users.view']);
+        $coord->givePermissionTo(['lancamentos.view', 'benfeitores.view', 'prestacao-contas.view', 'users.view']);
     }
 }

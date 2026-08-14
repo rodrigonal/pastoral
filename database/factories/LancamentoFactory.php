@@ -4,8 +4,8 @@ namespace Database\Factories;
 
 use App\Enums\CategoriaLancamentoEnum;
 use App\Enums\TipoLancamentoEnum;
+use App\Models\Benfeitor;
 use App\Models\Lancamento;
-use App\Models\Segmento;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -19,21 +19,21 @@ class LancamentoFactory extends Factory
     public function configure(): static
     {
         return $this->afterCreating(function (Lancamento $lancamento) {
-            if ($lancamento->categoria->requerSegmento() && $lancamento->segmentos()->count() === 0) {
-                $lancamento->segmentos()->attach(Segmento::factory());
+            if ($lancamento->categoria->requerBenfeitor() && $lancamento->benfeitor_id === null && $lancamento->classificado) {
+                $lancamento->update([
+                    'benfeitor_id' => Benfeitor::factory()->create()->id,
+                ]);
             }
         });
     }
 
     /**
-     * Define the model's default state.
-     *
      * @return array<string, mixed>
      */
     public function definition(): array
     {
         $categoria = fake()->randomElement(CategoriaLancamentoEnum::cases());
-        $tipo = $categoria->requerSegmento() ? TipoLancamentoEnum::Entrada : TipoLancamentoEnum::Saida;
+        $tipo = $categoria->requerBenfeitor() ? TipoLancamentoEnum::Entrada : TipoLancamentoEnum::Saida;
 
         return [
             'data' => fake()->dateTimeBetween('-1 year'),
@@ -44,6 +44,9 @@ class LancamentoFactory extends Factory
             'observacao' => fake()->optional(0.3)->paragraph(),
             'anexo_path' => null,
             'user_id' => User::factory(),
+            'benfeitor_id' => null,
+            'classificado' => true,
+            'is_historico' => false,
         ];
     }
 
@@ -52,9 +55,8 @@ class LancamentoFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'tipo' => TipoLancamentoEnum::Entrada,
             'categoria' => CategoriaLancamentoEnum::Arrecadacao,
-        ])->afterCreating(function (Lancamento $lancamento) {
-            $lancamento->segmentos()->attach(Segmento::factory());
-        });
+            'benfeitor_id' => Benfeitor::factory(),
+        ]);
     }
 
     public function saida(): static
@@ -62,6 +64,21 @@ class LancamentoFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'tipo' => TipoLancamentoEnum::Saida,
             'categoria' => CategoriaLancamentoEnum::Compra,
+        ]);
+    }
+
+    public function historico(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'is_historico' => true,
+        ]);
+    }
+
+    public function pendente(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'classificado' => false,
+            'benfeitor_id' => null,
         ]);
     }
 }

@@ -2,12 +2,12 @@
 
 use App\Enums\CategoriaLancamentoEnum;
 use App\Enums\TipoLancamentoEnum;
+use App\Models\Benfeitor;
+use App\Models\ControleSaldo;
 use App\Models\Lancamento;
-use App\Models\Segmento;
 use App\Models\User;
 use App\Services\SaldoService;
 use Carbon\Carbon;
-use function Pest\Laravel\actingAs;
 
 beforeEach(function () {
     $this->saldoService = new SaldoService;
@@ -15,17 +15,17 @@ beforeEach(function () {
 
 it('calcula saldo correto com entradas e saidas', function () {
     $user = User::factory()->create();
-    $segmento = Segmento::factory()->create();
+    $benfeitor = Benfeitor::factory()->create();
 
-    $lanc1 = Lancamento::create([
+    Lancamento::create([
         'data' => now()->subDays(5),
         'tipo' => TipoLancamentoEnum::Entrada,
         'categoria' => CategoriaLancamentoEnum::Arrecadacao,
         'valor' => 1000,
         'descricao' => 'Arrecadação teste',
         'user_id' => $user->id,
+        'benfeitor_id' => $benfeitor->id,
     ]);
-    $lanc1->segmentos()->attach($segmento);
 
     Lancamento::create([
         'data' => now()->subDays(3),
@@ -41,20 +41,20 @@ it('calcula saldo correto com entradas e saidas', function () {
 
 it('calcula saldo periodo corretamente', function () {
     $user = User::factory()->create();
-    $segmento = Segmento::factory()->create();
+    $benfeitor = Benfeitor::factory()->create();
 
     $inicio = Carbon::create(2025, 2, 1);
     $fim = Carbon::create(2025, 2, 28);
 
-    $lanc1 = Lancamento::create([
+    Lancamento::create([
         'data' => Carbon::create(2025, 2, 5),
         'tipo' => TipoLancamentoEnum::Entrada,
         'categoria' => CategoriaLancamentoEnum::Arrecadacao,
         'valor' => 500,
         'descricao' => 'Arrecadação fev',
         'user_id' => $user->id,
+        'benfeitor_id' => $benfeitor->id,
     ]);
-    $lanc1->segmentos()->attach($segmento);
 
     Lancamento::create([
         'data' => Carbon::create(2025, 2, 15),
@@ -76,17 +76,17 @@ it('saldo anterior retorna zero quando nao ha lancamentos anteriores', function 
 
 it('reembolso nao afeta o saldo', function () {
     $user = User::factory()->create();
-    $segmento = Segmento::factory()->create();
+    $benfeitor = Benfeitor::factory()->create();
 
-    $lanc1 = Lancamento::create([
+    Lancamento::create([
         'data' => now()->subDays(5),
         'tipo' => TipoLancamentoEnum::Entrada,
         'categoria' => CategoriaLancamentoEnum::Arrecadacao,
         'valor' => 1000,
         'descricao' => 'Arrecadação',
         'user_id' => $user->id,
+        'benfeitor_id' => $benfeitor->id,
     ]);
-    $lanc1->segmentos()->attach($segmento);
 
     Lancamento::create([
         'data' => now()->subDays(3),
@@ -107,4 +107,63 @@ it('reembolso nao afeta o saldo', function () {
     ]);
 
     expect($this->saldoService->saldoAcumulado())->toBe(700.0);
+});
+
+it('saldo em conta cs e saldo em maos', function () {
+    $user = User::factory()->create();
+    $benfeitor = Benfeitor::factory()->create();
+
+    Lancamento::create([
+        'data' => now()->subDays(5),
+        'tipo' => TipoLancamentoEnum::Entrada,
+        'categoria' => CategoriaLancamentoEnum::Arrecadacao,
+        'valor' => 1000,
+        'descricao' => 'Arrecadação teste',
+        'user_id' => $user->id,
+        'benfeitor_id' => $benfeitor->id,
+    ]);
+
+    Lancamento::create([
+        'data' => now()->subDays(3),
+        'tipo' => TipoLancamentoEnum::Saida,
+        'categoria' => CategoriaLancamentoEnum::Compra,
+        'valor' => 300,
+        'descricao' => 'Compra teste',
+        'user_id' => $user->id,
+    ]);
+
+    ControleSaldo::registro()->update(['saldo_em_maos' => 200]);
+
+    expect($this->saldoService->saldoAcumulado())->toBe(700.0);
+    expect($this->saldoService->saldoEmMaos())->toBe(200.0);
+    expect($this->saldoService->saldoEmContaCs())->toBe(500.0);
+});
+
+it('ignora lancamentos da conta antiga no saldo atual', function () {
+    $user = User::factory()->create();
+    $benfeitor = Benfeitor::factory()->create();
+
+    Lancamento::create([
+        'data' => now()->subYear(),
+        'tipo' => TipoLancamentoEnum::Entrada,
+        'categoria' => CategoriaLancamentoEnum::Arrecadacao,
+        'valor' => 5000,
+        'descricao' => 'Conta antiga',
+        'user_id' => $user->id,
+        'benfeitor_id' => $benfeitor->id,
+        'is_historico' => true,
+    ]);
+
+    Lancamento::create([
+        'data' => now(),
+        'tipo' => TipoLancamentoEnum::Entrada,
+        'categoria' => CategoriaLancamentoEnum::Arrecadacao,
+        'valor' => 200,
+        'descricao' => 'Conta nova',
+        'user_id' => $user->id,
+        'benfeitor_id' => $benfeitor->id,
+        'is_historico' => false,
+    ]);
+
+    expect($this->saldoService->saldoAcumulado())->toBe(200.0);
 });

@@ -3,13 +3,13 @@
 namespace App\Actions\Lancamento;
 
 use App\Models\Lancamento;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\ValidationException;
 
 class UpdateLancamentoAction
 {
     public function execute(Lancamento $lancamento, array $data): Lancamento
     {
+        $createAction = app(CreateLancamentoAction::class);
+
         $merged = array_merge([
             'data' => $lancamento->data->format('Y-m-d'),
             'tipo' => $lancamento->tipo->value,
@@ -18,9 +18,14 @@ class UpdateLancamentoAction
             'descricao' => $lancamento->descricao,
             'observacao' => $lancamento->observacao,
             'anexo_path' => $lancamento->anexo_path,
-            'segmento_ids' => $lancamento->segmentos->pluck('id')->toArray(),
+            'benfeitor_id' => $lancamento->benfeitor_id,
+            'classificado' => $lancamento->classificado,
+            'is_historico' => $lancamento->is_historico,
+            'historico_bancario' => $lancamento->historico_bancario,
+            'documento' => $lancamento->documento,
         ], $data);
-        app(CreateLancamentoAction::class)->validate($merged);
+
+        $createAction->validate($merged);
 
         $lancamento->update([
             'data' => $data['data'],
@@ -30,10 +35,11 @@ class UpdateLancamentoAction
             'descricao' => $data['descricao'],
             'observacao' => $data['observacao'] ?? null,
             'anexo_path' => $data['anexo_path'] ?? $lancamento->anexo_path,
+            'benfeitor_id' => $createAction->resolveBenfeitorId($merged),
+            'classificado' => array_key_exists('classificado', $data)
+                ? (bool) $data['classificado']
+                : $lancamento->classificado,
         ]);
-
-        $segmentoIds = $data['segmento_ids'] ?? [];
-        $lancamento->segmentos()->sync(is_array($segmentoIds) ? $segmentoIds : []);
 
         return $lancamento->fresh();
     }

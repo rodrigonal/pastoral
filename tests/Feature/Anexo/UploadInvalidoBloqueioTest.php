@@ -3,15 +3,14 @@
 use App\Actions\Lancamento\CreateLancamentoAction;
 use App\Enums\CategoriaLancamentoEnum;
 use App\Enums\TipoLancamentoEnum;
-use App\Models\Lancamento;
-use App\Models\Segmento;
+use App\Models\Benfeitor;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\ValidationException;
 
 beforeEach(function () {
     $this->user = User::factory()->create();
-    $this->segmento = Segmento::factory()->create();
+    $this->benfeitor = Benfeitor::factory()->create();
 });
 
 it('bloqueia upload de arquivo invalido', function () {
@@ -25,7 +24,7 @@ it('bloqueia upload de arquivo invalido', function () {
         'categoria' => CategoriaLancamentoEnum::Arrecadacao->value,
         'valor' => 100,
         'descricao' => 'Teste com anexo invalido',
-        'segmento_ids' => [$this->segmento->id],
+        'benfeitor_id' => $this->benfeitor->id,
         'anexo' => $file,
     ], $this->user->id);
 })->throws(ValidationException::class);

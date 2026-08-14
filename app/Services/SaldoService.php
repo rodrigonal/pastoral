@@ -4,18 +4,29 @@ namespace App\Services;
 
 use App\Enums\CategoriaLancamentoEnum;
 use App\Enums\TipoLancamentoEnum;
+use App\Models\ControleSaldo;
 use App\Models\Lancamento;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 
 class SaldoService
 {
     /**
+     * Lançamentos da conta atual (exclui histórico da conta antiga).
+     */
+    public function queryContaAtual(): Builder
+    {
+        return Lancamento::query()->contaAtual();
+    }
+
+    /**
      * Saldo acumulado até determinada data (inclusive).
      * Reembolsos não afetam o saldo (apenas controle no relatório).
+     * Lançamentos da conta antiga (histórico) não entram no cálculo.
      */
     public function saldoAcumulado(?Carbon $ate = null): float
     {
-        $query = Lancamento::query();
+        $query = $this->queryContaAtual();
 
         if ($ate !== null) {
             $query->whereDate('data', '<=', $ate->format('Y-m-d'));
@@ -34,6 +45,23 @@ class SaldoService
     }
 
     /**
+     * Valor em espécie informado manualmente (não entra nos lançamentos).
+     */
+    public function saldoEmMaos(): float
+    {
+        return round((float) ControleSaldo::registro()->saldo_em_maos, 2);
+    }
+
+    /**
+     * Saldo depositado no Centro Social = saldo acumulado pelos lançamentos − saldo em mãos.
+     * Usa o saldo acumulado na mesma data de referência e o saldo em mãos atual cadastrado.
+     */
+    public function saldoEmContaCs(?Carbon $ate = null): float
+    {
+        return round($this->saldoAcumulado($ate) - $this->saldoEmMaos(), 2);
+    }
+
+    /**
      * Saldo do período (de até ate, inclusive).
      */
     public function saldoPeriodo(Carbon $de, Carbon $ate): float
@@ -49,7 +77,7 @@ class SaldoService
      */
     public function totalEntradasPeriodo(Carbon $de, Carbon $ate): float
     {
-        return (float) Lancamento::query()
+        return (float) $this->queryContaAtual()
             ->where('tipo', TipoLancamentoEnum::Entrada)
             ->whereDate('data', '>=', $de->format('Y-m-d'))
             ->whereDate('data', '<=', $ate->format('Y-m-d'))
@@ -61,7 +89,7 @@ class SaldoService
      */
     public function totalSaidasPeriodo(Carbon $de, Carbon $ate): float
     {
-        return (float) Lancamento::query()
+        return (float) $this->queryContaAtual()
             ->where('tipo', TipoLancamentoEnum::Saida)
             ->where('categoria', '!=', CategoriaLancamentoEnum::Reembolso)
             ->whereDate('data', '>=', $de->format('Y-m-d'))
@@ -74,7 +102,7 @@ class SaldoService
      */
     public function totalReembolsosPeriodo(Carbon $de, Carbon $ate): float
     {
-        return (float) Lancamento::query()
+        return (float) $this->queryContaAtual()
             ->where('tipo', TipoLancamentoEnum::Saida)
             ->where('categoria', CategoriaLancamentoEnum::Reembolso)
             ->whereDate('data', '>=', $de->format('Y-m-d'))

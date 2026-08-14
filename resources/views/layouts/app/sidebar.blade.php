@@ -15,9 +15,17 @@
                     <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
                         {{ __('Dashboard') }}
                     </flux:sidebar.item>
+                    <flux:sidebar.item icon="banknotes" :href="route('controle-saldos')" :current="request()->routeIs('controle-saldos')" wire:navigate>
+                        {{ __('Controle de saldos') }}
+                    </flux:sidebar.item>
                     @can('lancamentos.view')
                     <flux:sidebar.item icon="currency-dollar" :href="route('lancamentos.index')" :current="request()->routeIs('lancamentos.*')" wire:navigate>
                         {{ __('Lançamentos') }}
+                    </flux:sidebar.item>
+                    @endcan
+                    @can('benfeitores.view')
+                    <flux:sidebar.item icon="heart" :href="route('benfeitores.index')" :current="request()->routeIs('benfeitores.*')" wire:navigate>
+                        {{ __('Benfeitores') }}
                     </flux:sidebar.item>
                     @endcan
                     @can('prestacao-contas.view')

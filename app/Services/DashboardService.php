@@ -28,6 +28,7 @@ class DashboardService
             $ate = $fimMes->gt($fim) ? $fim->copy() : $fimMes;
 
             $total = (float) Lancamento::query()
+                ->contaAtual()
                 ->where('tipo', TipoLancamentoEnum::Entrada)
                 ->whereDate('data', '>=', $de)
                 ->whereDate('data', '<=', $ate)
@@ -81,40 +82,29 @@ class DashboardService
     }
 
     /**
-     * Arrecadação por segmento no período.
+     * Arrecadação por benfeitor no período (conta atual).
      */
-    public function arrecadacaoPorSegmento(Carbon $inicio, Carbon $fim): array
+    public function arrecadacaoPorBenfeitor(Carbon $inicio, Carbon $fim): array
     {
-        $lancamentos = Lancamento::with('segmentos')
+        $lancamentos = Lancamento::with('benfeitor')
+            ->contaAtual()
             ->where('tipo', TipoLancamentoEnum::Entrada)
             ->where('categoria', CategoriaLancamentoEnum::Arrecadacao)
             ->whereDate('data', '>=', $inicio)
             ->whereDate('data', '<=', $fim)
             ->get();
 
-        $porSegmento = [];
+        $porBenfeitor = [];
         foreach ($lancamentos as $lancamento) {
-            foreach ($lancamento->segmentos as $segmento) {
-                $porSegmento[$segmento->nome] = ($porSegmento[$segmento->nome] ?? 0) + (float) $lancamento->valor;
-            }
+            $nome = $lancamento->benfeitor?->nome ?? 'Não classificado';
+            $porBenfeitor[$nome] = ($porBenfeitor[$nome] ?? 0) + (float) $lancamento->valor;
         }
 
-        $outros = (float) Lancamento::query()
-            ->where('tipo', TipoLancamentoEnum::Entrada)
-            ->whereDate('data', '>=', $inicio)
-            ->whereDate('data', '<=', $fim)
-            ->whereDoesntHave('segmentos')
-            ->sum('valor');
-
-        if ($outros > 0) {
-            $porSegmento['Sem segmento'] = $outros;
-        }
-
-        arsort($porSegmento);
+        arsort($porBenfeitor);
 
         return [
-            'labels' => array_keys($porSegmento),
-            'data' => array_map(fn ($v) => round($v, 2), array_values($porSegmento)),
+            'labels' => array_keys($porBenfeitor),
+            'data' => array_map(fn ($v) => round($v, 2), array_values($porBenfeitor)),
         ];
     }
 
@@ -124,6 +114,7 @@ class DashboardService
     public function saidasPorCategoria(Carbon $inicio, Carbon $fim): array
     {
         $porCategoria = Lancamento::query()
+            ->contaAtual()
             ->where('tipo', TipoLancamentoEnum::Saida)
             ->where('categoria', '!=', CategoriaLancamentoEnum::Reembolso)
             ->whereDate('data', '>=', $inicio)

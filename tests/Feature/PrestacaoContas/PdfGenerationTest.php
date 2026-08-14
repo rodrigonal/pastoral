@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\Segmento;
 use function Pest\Laravel\actingAs;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;

@@ -3,8 +3,8 @@
 use App\Actions\Lancamento\UpdateLancamentoAction;
 use App\Enums\CategoriaLancamentoEnum;
 use App\Enums\TipoLancamentoEnum;
+use App\Models\Benfeitor;
 use App\Models\Lancamento;
-use App\Models\Segmento;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Volt\Component;
@@ -24,7 +24,9 @@ class extends Component {
     public string $descricao = '';
     public ?string $observacao = null;
     public $anexo = null;
-    public array $segmento_ids = [];
+    public string $benfeitor_id = '';
+    public string $novo_benfeitor_nome = '';
+    public bool $classificado = true;
 
     public function mount(Lancamento $lancamento): void
     {
@@ -35,7 +37,8 @@ class extends Component {
         $this->valor = number_format($lancamento->valor, 2, ',', '');
         $this->descricao = $lancamento->descricao;
         $this->observacao = $lancamento->observacao;
-        $this->segmento_ids = $lancamento->segmentos->pluck('id')->map(fn ($id) => (string) $id)->toArray();
+        $this->benfeitor_id = $lancamento->benfeitor_id ? (string) $lancamento->benfeitor_id : '';
+        $this->classificado = (bool) $lancamento->classificado;
     }
 
     public function updatedCategoria($value): void
@@ -72,7 +75,9 @@ class extends Component {
             'descricao' => $this->descricao,
             'observacao' => $this->observacao,
             'anexo_path' => $anexoPath,
-            'segmento_ids' => array_map('intval', array_filter($this->segmento_ids)),
+            'benfeitor_id' => $this->benfeitor_id !== '' && $this->benfeitor_id !== 'novo' ? (int) $this->benfeitor_id : null,
+            'novo_benfeitor_nome' => $this->benfeitor_id === 'novo' ? $this->novo_benfeitor_nome : null,
+            'classificado' => $this->classificado,
         ];
 
         app(UpdateLancamentoAction::class)->execute($this->lancamento, $data);
@@ -101,7 +106,7 @@ class extends Component {
     public function with(): array
     {
         return [
-            'segmentos' => Segmento::where('ativo', true)->orderBy('ordem')->get(),
+            'benfeitores' => Benfeitor::where('ativo', true)->orderBy('nome')->get(),
         ];
     }
 }; ?>
@@ -111,6 +116,22 @@ class extends Component {
         <a href="{{ route('lancamentos.index') }}" wire:navigate class="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">← Voltar</a>
         <h1 class="text-xl font-semibold">Editar Lançamento</h1>
     </div>
+
+    @if($lancamento->is_historico)
+        <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300">
+            Este lançamento pertence à conta antiga e entra apenas como histórico. Ele não altera o saldo da conta atual.
+        </div>
+    @elseif(! $lancamento->classificado)
+        <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300">
+            Lançamento importado do extrato e ainda não classificado. Ajuste o título, a descrição
+            @if($categoria === 'arrecadacao') e o benfeitor @endif
+            e marque como classificado.
+        </div>
+    @endif
+
+    @if($lancamento->historico_bancario)
+        <p class="text-sm text-zinc-500">Extrato: {{ $lancamento->historico_bancario }}@if($lancamento->documento) · Doc. {{ $lancamento->documento }}@endif</p>
+    @endif
 
     <div class="max-w-xl rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-800">
         <form wire:submit="save" enctype="multipart/form-data" class="space-y-4">
@@ -123,7 +144,7 @@ class extends Component {
                 <label class="mb-1 block text-sm font-medium">Categoria *</label>
                 <select wire:model.live="categoria" class="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-700" required>
                     @foreach(CategoriaLancamentoEnum::cases() as $cat)
-                        <option value="{{ $cat->value }}">{{ ucfirst($cat->value) }}</option>
+                        <option value="{{ $cat->value }}">{{ $cat->label() }}</option>
                     @endforeach
                 </select>
             </div>
@@ -136,15 +157,23 @@ class extends Component {
             </div>
             @if($categoria === 'arrecadacao')
                 <div>
-                    <label class="mb-1 block text-sm font-medium">Segmentos *</label>
-                    <select wire:model="segmento_ids" multiple class="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-700" size="5">
-                        @foreach($segmentos as $seg)
-                            <option value="{{ $seg->id }}">{{ $seg->nome }}</option>
+                    <label class="mb-1 block text-sm font-medium">Benfeitor {{ $classificado ? '*' : '' }}</label>
+                    <select wire:model.live="benfeitor_id" class="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-700">
+                        <option value="">Não identificado</option>
+                        @foreach($benfeitores as $benfeitor)
+                            <option value="{{ $benfeitor->id }}">{{ $benfeitor->nome }}</option>
                         @endforeach
+                        <option value="novo">+ Cadastrar novo benfeitor</option>
                     </select>
-                    <p class="mt-1 text-xs text-zinc-500">Segure Ctrl (ou Cmd) para selecionar múltiplos</p>
-                    @error('segmento_ids') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                    @error('benfeitor_id') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
                 </div>
+                @if($benfeitor_id === 'novo')
+                    <div>
+                        <label class="mb-1 block text-sm font-medium">Nome do benfeitor *</label>
+                        <input type="text" wire:model="novo_benfeitor_nome" class="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-700" placeholder="Nome completo">
+                        @error('novo_benfeitor_nome') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                    </div>
+                @endif
             @endif
             <div>
                 <label class="mb-1 block text-sm font-medium">Valor *</label>
@@ -152,13 +181,17 @@ class extends Component {
                 @error('valor') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
             </div>
             <div>
-                <label class="mb-1 block text-sm font-medium">Descrição *</label>
+                <label class="mb-1 block text-sm font-medium">Título *</label>
                 <input type="text" wire:model="descricao" class="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-700" required>
                 @error('descricao') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
             </div>
             <div>
-                <label class="mb-1 block text-sm font-medium">Observação</label>
+                <label class="mb-1 block text-sm font-medium">Descrição</label>
                 <textarea wire:model="observacao" rows="3" class="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-700"></textarea>
+            </div>
+            <div class="flex items-center gap-2">
+                <input type="checkbox" id="classificado" wire:model="classificado" class="rounded border-zinc-300 dark:border-zinc-600">
+                <label for="classificado" class="text-sm font-medium">Classificado</label>
             </div>
             <div>
                 <label class="mb-1 block text-sm font-medium">Anexo (PDF ou imagem)</label>

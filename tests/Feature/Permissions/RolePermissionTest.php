@@ -2,7 +2,6 @@
 
 use App\Models\Lancamento;
 use function Pest\Laravel\actingAs;
-use App\Models\Segmento;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 
@@ -34,9 +33,7 @@ it('visualizador nao acessa lancamentos create', function () {
 it('visualizador nao acessa lancamentos edit', function () {
     $visualizador = User::factory()->create();
     $visualizador->assignRole('visualizador');
-    $segmento = Segmento::factory()->create();
     $lancamento = Lancamento::factory()->create(['user_id' => $visualizador->id]);
-    $lancamento->segmentos()->attach($segmento);
 
     actingAs($visualizador)->get(route('lancamentos.edit', $lancamento))->assertForbidden();
 });

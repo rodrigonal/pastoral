@@ -36,7 +36,7 @@ class extends Component {
             'arrecadacao_mensal' => $dashboardService->arrecadacaoPorMes($inicio, $fim),
             'saidas_mensal' => $dashboardService->saidasPorMes($inicio, $fim),
             'entradas_vs_saidas' => $dashboardService->entradasVsSaidasPorMes($inicio, $fim),
-            'por_segmento' => $dashboardService->arrecadacaoPorSegmento($inicio, $fim),
+            'por_benfeitor' => $dashboardService->arrecadacaoPorBenfeitor($inicio, $fim),
             'por_categoria' => $dashboardService->saidasPorCategoria($inicio, $fim),
             'evolucao_saldo' => $dashboardService->evolucaoSaldoPorMes($inicio, $fim),
             default => $dashboardService->arrecadacaoPorMes($inicio, $fim),
@@ -46,8 +46,11 @@ class extends Component {
             'totalEntradas' => $saldoService->totalEntradasPeriodo($inicio, $fim),
             'totalSaidas' => $saldoService->totalSaidasPeriodo($inicio, $fim),
             'saldoAtual' => $saldoService->saldoAcumulado(),
+            'saldoEmMaos' => $saldoService->saldoEmMaos(),
+            'saldoEmContaCs' => $saldoService->saldoEmContaCs(),
             'saldoPeriodo' => $saldoService->saldoPeriodo($inicio, $fim),
-            'ultimosLancamentos' => \App\Models\Lancamento::with(['user', 'segmentos'])
+            'ultimosLancamentos' => \App\Models\Lancamento::with(['user', 'benfeitor'])
+                ->contaAtual()
                 ->whereDate('data', '>=', $inicio)
                 ->whereDate('data', '<=', $fim)
                 ->orderByDesc('data')
@@ -78,7 +81,7 @@ class extends Component {
                     <option value="arrecadacao_mensal">Arrecadação por mês</option>
                     <option value="saidas_mensal">Saídas por mês</option>
                     <option value="entradas_vs_saidas">Entradas vs Saídas</option>
-                    <option value="por_segmento">Arrecadação por segmento</option>
+                    <option value="por_benfeitor">Arrecadação por benfeitor</option>
                     <option value="por_categoria">Saídas por categoria</option>
                     <option value="evolucao_saldo">Evolução do saldo</option>
                 </select>
@@ -86,7 +89,7 @@ class extends Component {
         </div>
     </div>
 
-    <div class="grid auto-rows-min gap-4 md:grid-cols-4">
+    <div class="grid auto-rows-min gap-4 md:grid-cols-2 xl:grid-cols-3">
         <div class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">
             <h3 class="text-sm font-medium text-zinc-500 dark:text-zinc-400">Entradas no período</h3>
             <p class="mt-2 text-2xl font-semibold text-green-600 dark:text-green-400">
@@ -111,6 +114,18 @@ class extends Component {
                 R$ {{ number_format($saldoAtual, 2, ',', '.') }}
             </p>
         </div>
+        <div class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">
+            <h3 class="text-sm font-medium text-zinc-500 dark:text-zinc-400">Saldo em mãos</h3>
+            <p class="mt-2 text-2xl font-semibold text-amber-600 dark:text-amber-400">
+                R$ {{ number_format($saldoEmMaos, 2, ',', '.') }}
+            </p>
+        </div>
+        <div class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">
+            <h3 class="text-sm font-medium text-zinc-500 dark:text-zinc-400">Saldo em conta (CS)</h3>
+            <p class="mt-2 text-2xl font-semibold {{ $saldoEmContaCs >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400' }}">
+                R$ {{ number_format($saldoEmContaCs, 2, ',', '.') }}
+            </p>
+        </div>
     </div>
 
     @if(!empty($chartData['labels']))
@@ -121,7 +136,7 @@ class extends Component {
                 @case('arrecadacao_mensal') Arrecadação por mês @break
                 @case('saidas_mensal') Saídas por mês @break
                 @case('entradas_vs_saidas') Entradas vs Saídas @break
-                @case('por_segmento') Arrecadação por segmento @break
+                @case('por_benfeitor') Arrecadação por benfeitor @break
                 @case('por_categoria') Saídas por categoria @break
                 @case('evolucao_saldo') Evolução do saldo @break
                 @default Gráfico
@@ -205,7 +220,7 @@ document.addEventListener('alpine:init', () => {
                         },
                         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: textColor } } }, scales: { x: { ticks: { color: textColor }, grid: { color: gridColor } }, y: { ticks: { color: textColor }, grid: { color: gridColor } } } }
                     };
-                } else if (type === 'por_segmento' || type === 'por_categoria') {
+                } else if (type === 'por_benfeitor' || type === 'por_categoria') {
                     chartConfig = {
                         type: 'doughnut',
                         data: {

@@ -78,7 +78,8 @@ class PrestacaoContasPdfService
      */
     private function gerarPeriodoResumo(Carbon $inicio, Carbon $fim, int $mesInicio, int $anoInicio, int $mesFim, int $anoFim): Response
     {
-        $entradas = Lancamento::with('segmentos')
+        $entradas = Lancamento::with('benfeitor')
+            ->contaAtual()
             ->where('tipo', TipoLancamentoEnum::Entrada)
             ->whereDate('data', '>=', $inicio)
             ->whereDate('data', '<=', $fim)
@@ -86,6 +87,7 @@ class PrestacaoContasPdfService
             ->get();
 
         $saidas = Lancamento::query()
+            ->contaAtual()
             ->where('tipo', TipoLancamentoEnum::Saida)
             ->whereDate('data', '>=', $inicio)
             ->whereDate('data', '<=', $fim)
@@ -200,7 +202,8 @@ class PrestacaoContasPdfService
         $inicio = Carbon::createFromDate($ano, $mes, 1)->startOfMonth();
         $fim = Carbon::createFromDate($ano, $mes, 1)->endOfMonth();
 
-        $entradas = Lancamento::with('segmentos')
+        $entradas = Lancamento::with('benfeitor')
+            ->contaAtual()
             ->where('tipo', TipoLancamentoEnum::Entrada)
             ->whereDate('data', '>=', $inicio)
             ->whereDate('data', '<=', $fim)
@@ -208,6 +211,7 @@ class PrestacaoContasPdfService
             ->get();
 
         $saidas = Lancamento::query()
+            ->contaAtual()
             ->where('tipo', TipoLancamentoEnum::Saida)
             ->whereDate('data', '>=', $inicio)
             ->whereDate('data', '<=', $fim)

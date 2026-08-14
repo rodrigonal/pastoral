@@ -30,6 +30,10 @@ return new class extends Migration
         }
 
         Schema::table('lancamentos', function (Blueprint $table) {
+            /** @see SQLite: índice em segmento_id impede dropColumn após dropForeign em alguns casos */
+            if (Schema::getConnection()->getDriverName() === 'sqlite') {
+                $table->dropIndex('lancamentos_segmento_id_index');
+            }
             $table->dropForeign(['segmento_id']);
             $table->dropColumn('segmento_id');
         });

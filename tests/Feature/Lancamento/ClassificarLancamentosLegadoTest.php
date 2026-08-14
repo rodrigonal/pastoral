@@ -19,7 +19,7 @@ it('classifica lancamentos do extrato como conta atual e anteriores como legado'
     $user = User::query()->first();
     $benfeitor = Benfeitor::factory()->create();
 
-    $legado = Lancamento::create([
+    $legadoAntigo = Lancamento::create([
         'data' => '2025-06-10',
         'tipo' => TipoLancamentoEnum::Entrada,
         'categoria' => CategoriaLancamentoEnum::Arrecadacao,
@@ -29,16 +29,30 @@ it('classifica lancamentos do extrato como conta atual e anteriores como legado'
         'benfeitor_id' => $benfeitor->id,
         'is_historico' => false,
     ]);
+    $legadoAntigo->forceFill(['created_at' => '2025-06-10 10:00:00'])->saveQuietly();
+
+    $legadoAposMarco = Lancamento::create([
+        'data' => '2026-04-15',
+        'tipo' => TipoLancamentoEnum::Entrada,
+        'categoria' => CategoriaLancamentoEnum::Arrecadacao,
+        'valor' => 610.43,
+        'descricao' => 'Doação CS depois de março',
+        'user_id' => $user->id,
+        'benfeitor_id' => $benfeitor->id,
+        'is_historico' => false,
+    ]);
+    $legadoAposMarco->forceFill(['created_at' => '2026-04-15 10:00:00'])->saveQuietly();
 
     $this->seed(ExtratoContaAtualSeeder::class);
     $this->seed(ClassificarLancamentosLegadoSeeder::class);
 
-    expect($legado->fresh()->is_historico)->toBeTrue();
-    expect(Lancamento::contaAtual()->count())->toBeGreaterThan(0);
-    expect(Lancamento::historico()->count())->toBe(1);
+    expect($legadoAntigo->fresh()->is_historico)->toBeTrue();
+    expect($legadoAposMarco->fresh()->is_historico)->toBeTrue();
+    expect(Lancamento::historico()->count())->toBe(2);
 
     $saldo = app(SaldoService::class);
-    expect($saldo->saldoLegado())->toBe(800.0);
+    expect($saldo->saldoLegado())->toBe(1410.43);
     expect($saldo->saldoAcumulado())->toBe(1182.95);
-    expect((float) ControleSaldo::registro()->saldo_legado)->toBe(800.0);
+    expect($saldo->saldoEmConta())->toBe(1182.95);
+    expect((float) ControleSaldo::registro()->saldo_legado)->toBe(1410.43);
 });

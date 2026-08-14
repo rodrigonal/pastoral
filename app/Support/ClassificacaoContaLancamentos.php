@@ -7,13 +7,22 @@ use App\Enums\TipoLancamentoEnum;
 use App\Models\ControleSaldo;
 use App\Models\Lancamento;
 use App\Services\ExtratoBancarioParser;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class ClassificacaoContaLancamentos
 {
     /**
-     * Marca lançamentos da conta Bradesco atual vs. legado (conta antiga do CS, inacessível).
+     * A partir desta data o sistema passou a usar a conta Bradesco atual.
+     * Lançamentos manuais criados antes disso (sem extrato) são da conta antiga do CS.
+     */
+    public const INICIO_CONTA_ATUAL = '2026-08-13';
+
+    /**
+     * Marca lançamentos da conta Bradesco atual vs. conta antiga do CS.
+     *
+     * Conta atual: documento do extrato Bradesco, ou lançamento lançado depois
+     * da virada de conta (cadastro manual na conta nova).
+     * Conta antiga: todo o restante.
      *
      * @return array{conta_atual: int, legado: int, saldo_legado: float}
      */
@@ -28,21 +37,29 @@ class ClassificacaoContaLancamentos
             ->pluck('id')
             ->all();
 
-        $idsComSegmento = Schema::hasTable('lancamento_segmento')
-            ? DB::table('lancamento_segmento')->distinct()->pluck('lancamento_id')->all()
-            : [];
-
-        $idsLegadoPorData = Lancamento::query()
-            ->whereDate('data', '<', '2026-03-05')
-            ->when($idsExtrato !== [], fn ($q) => $q->whereNotIn('id', $idsExtrato))
+        $idsDoBanco = Lancamento::query()
+            ->whereNotNull('historico_bancario')
+            ->where('historico_bancario', '!=', '')
             ->pluck('id')
             ->all();
 
-        $idsLegado = array_values(array_unique(array_merge($idsComSegmento, $idsLegadoPorData)));
-        $idsLegado = array_values(array_diff($idsLegado, $idsExtrato));
+        $idsNovosManuais = Lancamento::query()
+            ->where('created_at', '>=', self::INICIO_CONTA_ATUAL)
+            ->where(function ($q) {
+                $q->whereNull('historico_bancario')->orWhere('historico_bancario', '');
+            })
+            ->pluck('id')
+            ->all();
 
-        if ($idsExtrato !== []) {
-            Lancamento::query()->whereIn('id', $idsExtrato)->update(['is_historico' => false]);
+        $idsContaAtual = array_values(array_unique(array_merge($idsExtrato, $idsDoBanco, $idsNovosManuais)));
+
+        $idsLegado = Lancamento::query()
+            ->when($idsContaAtual !== [], fn ($q) => $q->whereNotIn('id', $idsContaAtual))
+            ->pluck('id')
+            ->all();
+
+        if ($idsContaAtual !== []) {
+            Lancamento::query()->whereIn('id', $idsContaAtual)->update(['is_historico' => false]);
         }
 
         if ($idsLegado !== []) {
@@ -53,7 +70,7 @@ class ClassificacaoContaLancamentos
         self::gravarSaldoLegado($saldoLegado);
 
         return [
-            'conta_atual' => count($idsExtrato),
+            'conta_atual' => count($idsContaAtual),
             'legado' => count($idsLegado),
             'saldo_legado' => $saldoLegado,
         ];

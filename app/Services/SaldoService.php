@@ -33,7 +33,7 @@ class SaldoService
      */
     public function saldoAcumulado(?Carbon $ate = null): float
     {
-        return round($this->saldoLivro($ate) - $this->saldoLegado($ate), 2);
+        return $this->saldoDaQuery($this->queryContaAtual(), $ate);
     }
 
     /**

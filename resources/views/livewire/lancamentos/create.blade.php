@@ -20,7 +20,7 @@ class extends Component {
     public string $valor = '';
     public string $descricao = '';
     public ?string $observacao = null;
-    public $anexo = null;
+    public $anexos = [];
     public string $benfeitor_id = '';
     public string $novo_benfeitor_nome = '';
 
@@ -44,13 +44,9 @@ class extends Component {
         $this->authorize('lancamentos.create');
 
         $this->validate([
-            'anexo' => ['nullable', 'file', 'mimes:pdf,jpeg,jpg,png', 'max:5120'],
+            'anexos' => ['nullable', 'array', 'max:10'],
+            'anexos.*' => ['file', 'mimes:pdf,jpeg,jpg,png', 'max:5120'],
         ]);
-
-        $anexoPath = null;
-        if ($this->anexo) {
-            $anexoPath = $this->anexo->store('lancamentos', 'local');
-        }
 
         $data = [
             'data' => $this->data,
@@ -59,7 +55,7 @@ class extends Component {
             'valor' => (float) str_replace(',', '.', str_replace('.', '', preg_replace('/R\$\s*/', '', $this->valor))),
             'descricao' => $this->descricao,
             'observacao' => $this->observacao,
-            'anexo_path' => $anexoPath,
+            'anexos' => $this->anexos,
             'benfeitor_id' => $this->benfeitor_id !== '' && $this->benfeitor_id !== 'novo' ? (int) $this->benfeitor_id : null,
             'novo_benfeitor_nome' => $this->benfeitor_id === 'novo' ? $this->novo_benfeitor_nome : null,
             'classificado' => true,
@@ -142,9 +138,17 @@ class extends Component {
                 <textarea wire:model="observacao" rows="3" class="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-700"></textarea>
             </div>
             <div>
-                <label class="mb-1 block text-sm font-medium">Anexo (PDF ou imagem)</label>
-                <input type="file" wire:model="anexo" accept=".pdf,.jpg,.jpeg,.png" class="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-700">
-                @error('anexo') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                <label class="mb-1 block text-sm font-medium">Anexos (PDF ou imagem)</label>
+                <input type="file" wire:model="anexos" multiple accept=".pdf,.jpg,.jpeg,.png" class="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-700">
+                @if(is_array($anexos) && count($anexos) > 0)
+                    <ul class="mt-2 list-inside list-disc text-sm text-zinc-600 dark:text-zinc-400">
+                        @foreach($anexos as $arquivo)
+                            <li>{{ is_object($arquivo) ? $arquivo->getClientOriginalName() : $arquivo }}</li>
+                        @endforeach
+                    </ul>
+                @endif
+                @error('anexos') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                @error('anexos.*') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
             </div>
             <div class="flex gap-2">
                 <button type="submit" class="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200">

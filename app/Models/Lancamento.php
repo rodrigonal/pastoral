@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Http\UploadedFile;
 
 class Lancamento extends Model
 {
@@ -21,7 +23,6 @@ class Lancamento extends Model
         'valor',
         'descricao',
         'observacao',
-        'anexo_path',
         'user_id',
         'benfeitor_id',
         'classificado',
@@ -50,6 +51,32 @@ class Lancamento extends Model
     public function benfeitor(): BelongsTo
     {
         return $this->belongsTo(Benfeitor::class);
+    }
+
+    public function anexos(): HasMany
+    {
+        return $this->hasMany(LancamentoAnexo::class)->orderBy('ordem')->orderBy('id');
+    }
+
+    /**
+     * @param  iterable<int, mixed>  $arquivos
+     */
+    public function anexarArquivos(iterable $arquivos): void
+    {
+        $ordem = (int) $this->anexos()->max('ordem');
+
+        foreach ($arquivos as $arquivo) {
+            if (! $arquivo instanceof UploadedFile) {
+                continue;
+            }
+
+            $ordem++;
+            $this->anexos()->create([
+                'path' => $arquivo->store('lancamentos', 'local'),
+                'nome_original' => $arquivo->getClientOriginalName(),
+                'ordem' => $ordem,
+            ]);
+        }
     }
 
     /**

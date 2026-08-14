@@ -23,14 +23,14 @@ class extends Component {
     public string $valor = '';
     public string $descricao = '';
     public ?string $observacao = null;
-    public $anexo = null;
+    public $anexos = [];
     public string $benfeitor_id = '';
     public string $novo_benfeitor_nome = '';
     public bool $classificado = true;
 
     public function mount(Lancamento $lancamento): void
     {
-        $this->lancamento = $lancamento;
+        $this->lancamento = $lancamento->load('anexos');
         $this->data = $lancamento->data->format('Y-m-d');
         $this->tipo = $lancamento->tipo->value;
         $this->categoria = $lancamento->categoria->value;
@@ -56,16 +56,9 @@ class extends Component {
         $this->authorize('lancamentos.update');
 
         $this->validate([
-            'anexo' => ['nullable', 'file', 'mimes:pdf,jpeg,jpg,png', 'max:5120'],
+            'anexos' => ['nullable', 'array', 'max:10'],
+            'anexos.*' => ['file', 'mimes:pdf,jpeg,jpg,png', 'max:5120'],
         ]);
-
-        $anexoPath = $this->lancamento->anexo_path;
-        if ($this->anexo) {
-            if ($this->lancamento->anexo_path) {
-                \Illuminate\Support\Facades\Storage::disk('local')->delete($this->lancamento->anexo_path);
-            }
-            $anexoPath = $this->anexo->store('lancamentos', 'local');
-        }
 
         $data = [
             'data' => $this->data,
@@ -74,7 +67,7 @@ class extends Component {
             'valor' => (float) str_replace(',', '.', str_replace('.', '', preg_replace('/R\$\s*/', '', $this->valor))),
             'descricao' => $this->descricao,
             'observacao' => $this->observacao,
-            'anexo_path' => $anexoPath,
+            'anexos' => $this->anexos,
             'benfeitor_id' => $this->benfeitor_id !== '' && $this->benfeitor_id !== 'novo' ? (int) $this->benfeitor_id : null,
             'novo_benfeitor_nome' => $this->benfeitor_id === 'novo' ? $this->novo_benfeitor_nome : null,
             'classificado' => $this->classificado,
@@ -86,19 +79,13 @@ class extends Component {
         $this->redirect(route('lancamentos.index'), navigate: true);
     }
 
-    public function removeAnexo(): void
+    public function removeAnexo(int $anexoId): void
     {
-        if (! auth()->user()->hasRole('admin')) {
-            abort(403);
-        }
+        $this->authorize('lancamentos.update');
 
-        if (! $this->lancamento->anexo_path) {
-            return;
-        }
-
-        \Illuminate\Support\Facades\Storage::disk('local')->delete($this->lancamento->anexo_path);
-        $this->lancamento->update(['anexo_path' => null]);
-        $this->lancamento->refresh();
+        $anexo = $this->lancamento->anexos()->findOrFail($anexoId);
+        $anexo->excluirArquivo();
+        $this->lancamento->load('anexos');
 
         session()->flash('message', 'Anexo removido com sucesso.');
     }
@@ -194,37 +181,46 @@ class extends Component {
                 <label for="classificado" class="text-sm font-medium">Classificado</label>
             </div>
             <div>
-                <label class="mb-1 block text-sm font-medium">Anexo (PDF ou imagem)</label>
-                <input type="file" wire:model="anexo" accept=".pdf,.jpg,.jpeg,.png" class="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-700">
-                @if($lancamento->anexo_path)
-                    @php
-                        $ext = strtolower(pathinfo($lancamento->anexo_path, PATHINFO_EXTENSION));
-                        $ehImagem = in_array($ext, ['jpg', 'jpeg', 'png', 'gif']);
-                    @endphp
-                    <div class="mt-2 flex flex-wrap items-start gap-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-600 dark:bg-zinc-900/50">
-                        @if($ehImagem)
-                            @php $anexoUrl = route('lancamentos.anexo', $lancamento) . '?inline=1'; @endphp
-                            <a href="{{ $anexoUrl }}" target="_blank" class="block shrink-0">
-                                <img src="{{ $anexoUrl }}" alt="Preview" class="h-20 w-20 rounded border border-zinc-300 object-cover dark:border-zinc-600">
-                            </a>
-                        @endif
-                        <div class="min-w-0 flex-1">
-                            <p class="text-sm font-medium text-zinc-700 dark:text-zinc-300">{{ basename($lancamento->anexo_path) }}</p>
-                            <div class="mt-1 flex flex-wrap gap-2">
-                                <a href="{{ route('lancamentos.anexo', $lancamento) }}{{ $ehImagem ? '?inline=1' : '' }}" target="_blank" class="text-sm text-zinc-600 underline hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">
-                                    {{ $ehImagem ? 'Ver imagem' : 'Baixar PDF' }}
-                                </a>
-                                @role('admin')
-                                <button type="button" wire:click="removeAnexo" wire:confirm="Remover este anexo? O arquivo será excluído permanentemente."
-                                    class="text-sm text-red-600 underline hover:text-red-800 dark:text-red-400 dark:hover:text-red-300">
-                                    Remover anexo
-                                </button>
-                                @endrole
+                <label class="mb-1 block text-sm font-medium">Anexos (PDF ou imagem)</label>
+                <input type="file" wire:model="anexos" multiple accept=".pdf,.jpg,.jpeg,.png" class="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-700">
+                @if(is_array($anexos) && count($anexos) > 0)
+                    <p class="mt-1 text-xs text-zinc-500">Novos arquivos serão adicionados aos já existentes ao salvar.</p>
+                    <ul class="mt-2 list-inside list-disc text-sm text-zinc-600 dark:text-zinc-400">
+                        @foreach($anexos as $arquivo)
+                            <li>{{ is_object($arquivo) ? $arquivo->getClientOriginalName() : $arquivo }}</li>
+                        @endforeach
+                    </ul>
+                @endif
+                @if($lancamento->anexos->isNotEmpty())
+                    <div class="mt-3 space-y-2">
+                        @foreach($lancamento->anexos as $anexo)
+                            @php $anexoUrl = route('lancamentos.anexo', $anexo) . ($anexo->ehImagem() ? '?inline=1' : ''); @endphp
+                            <div class="flex flex-wrap items-start gap-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-600 dark:bg-zinc-900/50">
+                                @if($anexo->ehImagem())
+                                    <a href="{{ $anexoUrl }}" target="_blank" class="block shrink-0">
+                                        <img src="{{ $anexoUrl }}" alt="Preview" class="h-20 w-20 rounded border border-zinc-300 object-cover dark:border-zinc-600">
+                                    </a>
+                                @endif
+                                <div class="min-w-0 flex-1">
+                                    <p class="text-sm font-medium text-zinc-700 dark:text-zinc-300">{{ $anexo->nome() }}</p>
+                                    <div class="mt-1 flex flex-wrap gap-2">
+                                        <a href="{{ $anexoUrl }}" target="_blank" class="text-sm text-zinc-600 underline hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">
+                                            {{ $anexo->ehImagem() ? 'Ver imagem' : 'Baixar PDF' }}
+                                        </a>
+                                        @can('lancamentos.update')
+                                        <button type="button" wire:click="removeAnexo({{ $anexo->id }})" wire:confirm="Remover este anexo? O arquivo será excluído permanentemente."
+                                            class="text-sm text-red-600 underline hover:text-red-800 dark:text-red-400 dark:hover:text-red-300">
+                                            Remover
+                                        </button>
+                                        @endcan
+                                    </div>
+                                </div>
                             </div>
-                        </div>
+                        @endforeach
                     </div>
                 @endif
-                @error('anexo') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                @error('anexos') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                @error('anexos.*') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
             </div>
             <div class="flex gap-2">
                 <button type="submit" class="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200">

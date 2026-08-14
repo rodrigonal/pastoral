@@ -16,11 +16,6 @@ class CreateLancamentoAction
     {
         $this->validate($data);
 
-        $anexoPath = $data['anexo_path'] ?? null;
-        if (isset($data['anexo']) && $data['anexo'] instanceof UploadedFile) {
-            $anexoPath = $data['anexo']->store('lancamentos', 'local');
-        }
-
         $classificado = array_key_exists('classificado', $data)
             ? (bool) $data['classificado']
             : true;
@@ -32,7 +27,6 @@ class CreateLancamentoAction
             'valor' => $data['valor'],
             'descricao' => $data['descricao'],
             'observacao' => $data['observacao'] ?? null,
-            'anexo_path' => $anexoPath,
             'user_id' => $userId,
             'benfeitor_id' => $this->resolveBenfeitorId($data, $userId),
             'classificado' => $classificado,
@@ -41,7 +35,9 @@ class CreateLancamentoAction
             'documento' => $data['documento'] ?? null,
         ]);
 
-        return $lancamento;
+        $lancamento->anexarArquivos($this->arquivosDeAnexo($data));
+
+        return $lancamento->load('anexos');
     }
 
     /**
@@ -58,7 +54,8 @@ class CreateLancamentoAction
             'descricao' => ['required', 'string', 'max:255'],
             'observacao' => ['nullable', 'string'],
             'anexo' => ['nullable', 'file', 'mimes:pdf,jpeg,jpg,png', 'max:5120'],
-            'anexo_path' => ['nullable', 'string', 'max:500'],
+            'anexos' => ['nullable', 'array', 'max:10'],
+            'anexos.*' => ['file', 'mimes:pdf,jpeg,jpg,png', 'max:5120'],
             'benfeitor_id' => ['nullable', 'exists:benfeitores,id'],
             'novo_benfeitor_nome' => ['nullable', 'string', 'max:255'],
             'membro_id' => ['nullable', 'exists:users,id'],
@@ -98,6 +95,29 @@ class CreateLancamentoAction
         });
 
         $validator->validate();
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return list<UploadedFile>
+     */
+    public function arquivosDeAnexo(array $data): array
+    {
+        $arquivos = [];
+
+        if (isset($data['anexo']) && $data['anexo'] instanceof UploadedFile) {
+            $arquivos[] = $data['anexo'];
+        }
+
+        if (isset($data['anexos']) && is_array($data['anexos'])) {
+            foreach ($data['anexos'] as $arquivo) {
+                if ($arquivo instanceof UploadedFile) {
+                    $arquivos[] = $arquivo;
+                }
+            }
+        }
+
+        return $arquivos;
     }
 
     /**

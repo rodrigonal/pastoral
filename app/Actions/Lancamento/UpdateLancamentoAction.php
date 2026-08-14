@@ -17,7 +17,6 @@ class UpdateLancamentoAction
             'valor' => $lancamento->valor,
             'descricao' => $lancamento->descricao,
             'observacao' => $lancamento->observacao,
-            'anexo_path' => $lancamento->anexo_path,
             'benfeitor_id' => $lancamento->benfeitor_id,
             'classificado' => $lancamento->classificado,
             'is_historico' => $lancamento->is_historico,
@@ -34,13 +33,14 @@ class UpdateLancamentoAction
             'valor' => $data['valor'],
             'descricao' => $data['descricao'],
             'observacao' => $data['observacao'] ?? null,
-            'anexo_path' => $data['anexo_path'] ?? $lancamento->anexo_path,
             'benfeitor_id' => $createAction->resolveBenfeitorId($merged, $lancamento->user_id),
             'classificado' => array_key_exists('classificado', $data)
                 ? (bool) $data['classificado']
                 : $lancamento->classificado,
         ]);
 
-        return $lancamento->fresh();
+        $lancamento->anexarArquivos($createAction->arquivosDeAnexo($data));
+
+        return $lancamento->fresh(['anexos']);
     }
 }

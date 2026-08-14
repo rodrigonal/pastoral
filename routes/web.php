@@ -17,7 +17,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::middleware(['permission:lancamentos.view'])->group(function () {
         Volt::route('lancamentos', 'lancamentos.index')->name('lancamentos.index');
-        Route::get('lancamentos/{lancamento}/anexo', [\App\Http\Controllers\LancamentoAnexoController::class, 'download'])->name('lancamentos.anexo');
+        Route::get('lancamentos/anexos/{anexo}', [\App\Http\Controllers\LancamentoAnexoController::class, 'download'])->name('lancamentos.anexo');
     });
 
     Route::middleware(['permission:benfeitores.create'])->group(function () {

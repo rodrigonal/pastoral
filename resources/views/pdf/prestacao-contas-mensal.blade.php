@@ -126,30 +126,32 @@
     </table>
 
     @php
-        $lancamentosComAnexo = $entradas->concat($saidasAfetamSaldo)->concat($reembolsos)->filter(fn ($l) => $l->anexo_path)->sortBy('data');
+        $lancamentosComAnexo = $entradas->concat($saidasAfetamSaldo)->concat($reembolsos)->filter(fn ($l) => $l->anexos->isNotEmpty())->sortBy('data');
     @endphp
     @if($lancamentosComAnexo->isNotEmpty())
         <h2 style="margin-top: 32px;">COMPROVANTES / ANEXOS</h2>
         @foreach($lancamentosComAnexo as $lancamento)
-            @php
-                $caminhoCompleto = \Illuminate\Support\Facades\Storage::disk('local')->path($lancamento->anexo_path);
-                $ext = strtolower(pathinfo($lancamento->anexo_path, PATHINFO_EXTENSION));
-                $ehImagem = in_array($ext, ['jpg', 'jpeg', 'png', 'gif']);
-                $imgBase64 = null;
-                if ($ehImagem && file_exists($caminhoCompleto)) {
-                    $mime = match($ext) { 'jpg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'gif' => 'image/gif', default => 'image/jpeg' };
-                    $imgBase64 = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($caminhoCompleto));
-                }
-            @endphp
-            <div class="anexo-item">
-                <strong>{{ $lancamento->data->format('d/m/Y') }}</strong> – {{ $lancamento->descricao }}
-                ({{ ucfirst($lancamento->categoria->value) }}) – R$ {{ number_format($lancamento->valor, 2, ',', '.') }}
-                @if($imgBase64)
-                    <img src="{{ $imgBase64 }}" alt="Comprovante {{ $lancamento->descricao }}">
-                @elseif($ext === 'pdf')
-                    <div class="anexo-pdf">Documento PDF incorporado ao final deste relatório.</div>
-                @endif
-            </div>
+            @foreach($lancamento->anexos as $anexo)
+                @php
+                    $caminhoCompleto = $anexo->caminhoAbsoluto();
+                    $imgBase64 = null;
+                    if ($anexo->ehImagem() && file_exists($caminhoCompleto)) {
+                        $imgBase64 = 'data:' . $anexo->mimeType() . ';base64,' . base64_encode(file_get_contents($caminhoCompleto));
+                    }
+                @endphp
+                <div class="anexo-item">
+                    <strong>{{ $lancamento->data->format('d/m/Y') }}</strong> – {{ $lancamento->descricao }}
+                    ({{ ucfirst($lancamento->categoria->value) }}) – R$ {{ number_format($lancamento->valor, 2, ',', '.') }}
+                    @if($lancamento->anexos->count() > 1)
+                        – {{ $anexo->nome() }}
+                    @endif
+                    @if($imgBase64)
+                        <img src="{{ $imgBase64 }}" alt="Comprovante {{ $lancamento->descricao }}">
+                    @elseif($anexo->ehPdf())
+                        <div class="anexo-pdf">Documento PDF incorporado ao final deste relatório.</div>
+                    @endif
+                </div>
+            @endforeach
         @endforeach
     @endif
 

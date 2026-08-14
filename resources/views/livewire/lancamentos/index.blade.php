@@ -29,7 +29,7 @@ class extends Component {
 
     public function with(): array
     {
-        $query = Lancamento::with(['user', 'benfeitor'])->orderByDesc('data')->orderByDesc('id');
+        $query = Lancamento::with(['user', 'benfeitor', 'anexos'])->orderByDesc('data')->orderByDesc('id');
 
         if ($this->filtroDataInicio) {
             $query->whereDate('data', '>=', $this->filtroDataInicio);
@@ -168,11 +168,15 @@ class extends Component {
                                 R$ {{ number_format($lancamento->valor, 2, ',', '.') }}
                             </td>
                             <td class="px-4 py-2 text-center">
-                                @if($lancamento->anexo_path)
-                                    <a href="{{ route('lancamentos.anexo', $lancamento) }}{{ in_array(strtolower(pathinfo($lancamento->anexo_path, PATHINFO_EXTENSION)), ['jpg','jpeg','png','gif']) ? '?inline=1' : '' }}" target="_blank" class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-700" title="{{ basename($lancamento->anexo_path) }}">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
-                                        Ver
-                                    </a>
+                                @if($lancamento->anexos->isNotEmpty())
+                                    <div class="flex flex-wrap items-center justify-center gap-1">
+                                        @foreach($lancamento->anexos as $anexo)
+                                            <a href="{{ route('lancamentos.anexo', $anexo) }}{{ $anexo->ehImagem() ? '?inline=1' : '' }}" target="_blank" class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-700" title="{{ $anexo->nome() }}">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                                                {{ $loop->count > 1 ? $loop->iteration : 'Ver' }}
+                                            </a>
+                                        @endforeach
+                                    </div>
                                 @else
                                     <span class="text-zinc-400">-</span>
                                 @endif

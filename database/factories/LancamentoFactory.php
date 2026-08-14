@@ -42,7 +42,6 @@ class LancamentoFactory extends Factory
             'valor' => fake()->randomFloat(2, 10, 5000),
             'descricao' => fake()->sentence(),
             'observacao' => fake()->optional(0.3)->paragraph(),
-            'anexo_path' => null,
             'user_id' => User::factory(),
             'benfeitor_id' => null,
             'classificado' => true,

@@ -9,7 +9,6 @@ use App\Support\ExtratoBancarioCatalogo;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Storage;
 use setasign\Fpdi\Fpdi;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -81,7 +80,7 @@ class PrestacaoContasPdfService
      */
     private function gerarPeriodoResumo(Carbon $inicio, Carbon $fim, int $mesInicio, int $anoInicio, int $mesFim, int $anoFim): Response
     {
-        $entradas = Lancamento::with('benfeitor')
+        $entradas = Lancamento::with(['benfeitor', 'anexos'])
             ->contaAtual()
             ->where('tipo', TipoLancamentoEnum::Entrada)
             ->whereDate('data', '>=', $inicio)
@@ -90,6 +89,7 @@ class PrestacaoContasPdfService
             ->get();
 
         $saidas = Lancamento::query()
+            ->with('anexos')
             ->contaAtual()
             ->where('tipo', TipoLancamentoEnum::Saida)
             ->whereDate('data', '>=', $inicio)
@@ -127,18 +127,15 @@ class PrestacaoContasPdfService
         $domPdf = Pdf::loadView('pdf.prestacao-contas-resumo', $data)
             ->setPaper('a4', 'portrait');
 
-        $lancamentosComPdf = $entradas->concat($saidas)
-            ->filter(fn (Lancamento $l) => $l->anexo_path && strtolower(pathinfo($l->anexo_path, PATHINFO_EXTENSION)) === 'pdf')
-            ->sortBy('data')
-            ->values();
+        $lancamentosComPdf = $entradas->concat($saidas)->sortBy('data')->values();
 
         $tempMain = tempnam(sys_get_temp_dir(), 'prestacao_');
         $domPdf->save($tempMain);
 
-        $anexos = $lancamentosComPdf
-            ->map(fn (Lancamento $l) => Storage::disk('local')->path($l->anexo_path))
-            ->merge(ExtratoBancarioCatalogo::noPeriodo($inicio, $fim)->pluck('caminho'))
-            ->all();
+        $anexos = array_merge(
+            $this->caminhosAnexosPdf($lancamentosComPdf),
+            ExtratoBancarioCatalogo::noPeriodo($inicio, $fim)->pluck('caminho')->all()
+        );
 
         $tempFinal = $this->concatenarAnexos($tempMain, $anexos);
         $output = file_get_contents($tempFinal);
@@ -187,7 +184,7 @@ class PrestacaoContasPdfService
         $inicio = Carbon::createFromDate($ano, $mes, 1)->startOfMonth();
         $fim = Carbon::createFromDate($ano, $mes, 1)->endOfMonth();
 
-        $entradas = Lancamento::with('benfeitor')
+        $entradas = Lancamento::with(['benfeitor', 'anexos'])
             ->contaAtual()
             ->where('tipo', TipoLancamentoEnum::Entrada)
             ->whereDate('data', '>=', $inicio)
@@ -196,6 +193,7 @@ class PrestacaoContasPdfService
             ->get();
 
         $saidas = Lancamento::query()
+            ->with('anexos')
             ->contaAtual()
             ->where('tipo', TipoLancamentoEnum::Saida)
             ->whereDate('data', '>=', $inicio)
@@ -232,19 +230,26 @@ class PrestacaoContasPdfService
         $domPdf = Pdf::loadView('pdf.prestacao-contas-mensal', $data)
             ->setPaper('a4', 'portrait');
 
-        $lancamentosComPdf = $entradas->concat($saidas)
-            ->filter(fn (Lancamento $l) => $l->anexo_path && strtolower(pathinfo($l->anexo_path, PATHINFO_EXTENSION)) === 'pdf')
-            ->sortBy('data')
-            ->values();
+        $lancamentosDoMes = $entradas->concat($saidas)->sortBy('data')->values();
 
         $tempMain = tempnam(sys_get_temp_dir(), 'prestacao_');
         $domPdf->save($tempMain);
 
-        $anexos = $lancamentosComPdf
-            ->map(fn (Lancamento $l) => Storage::disk('local')->path($l->anexo_path))
-            ->all();
+        return $this->concatenarAnexos($tempMain, $this->caminhosAnexosPdf($lancamentosDoMes));
+    }
 
-        return $this->concatenarAnexos($tempMain, $anexos);
+    /**
+     * @param  \Illuminate\Support\Collection<int, Lancamento>|iterable<Lancamento>  $lancamentos
+     * @return list<string>
+     */
+    private function caminhosAnexosPdf(iterable $lancamentos): array
+    {
+        return collect($lancamentos)
+            ->flatMap(fn (Lancamento $lancamento) => $lancamento->anexos)
+            ->filter(fn ($anexo) => $anexo->ehPdf())
+            ->map(fn ($anexo) => $anexo->caminhoAbsoluto())
+            ->values()
+            ->all();
     }
 
     /**

@@ -124,6 +124,7 @@
             <td style="text-align: right; font-weight: bold;">R$ {{ number_format($saldoFinal, 2, ',', '.') }}</td>
         </tr>
     </table>
+    <p class="anexo-pdf" style="text-align: right;">Conta atual. O saldo legado da conta antiga não entra neste total.</p>
 
     @php
         $lancamentosComAnexo = $entradas->concat($saidasAfetamSaldo)->concat($reembolsos)->filter(fn ($l) => $l->anexos->isNotEmpty())->sortBy('data');

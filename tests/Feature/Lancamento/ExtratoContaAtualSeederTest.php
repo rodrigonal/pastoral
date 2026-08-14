@@ -1,8 +1,10 @@
 <?php
 
+use App\Models\Benfeitor;
 use App\Models\Lancamento;
 use App\Services\ExtratoBancarioParser;
 use App\Services\SaldoService;
+use Database\Seeders\AtualizarLancamentosExtratoPdfSeeder;
 use Database\Seeders\ExtratoContaAtualSeeder;
 use Database\Seeders\RolePermissionSeeder;
 use Database\Seeders\UserSeeder;
@@ -40,4 +42,27 @@ it('importa o extrato como lancamentos da conta atual', function () {
 
     $saldo = app(SaldoService::class)->saldoAcumulado();
     expect($saldo)->toBe(1182.95);
+});
+
+it('atualiza lancamentos com nomes do extrato PDF sem duplicar', function () {
+    $this->seed(RolePermissionSeeder::class);
+    $this->seed(UserSeeder::class);
+    $this->seed(ExtratoContaAtualSeeder::class);
+    $this->seed(AtualizarLancamentosExtratoPdfSeeder::class);
+
+    $arlen = Benfeitor::query()->where('nome', 'Arlen Coelho Costa')->first();
+    expect($arlen)->not->toBeNull();
+
+    $doacao = Lancamento::query()->where('documento', '949395')->first();
+    expect($doacao?->benfeitor_id)->toBe($arlen->id);
+    expect($doacao?->classificado)->toBeTrue();
+    expect($doacao?->descricao)->toContain('Arlen Coelho Costa');
+
+    $saida = Lancamento::query()->where('documento', '906414')->first();
+    expect($saida?->descricao)->toBe('Assaí Atacadista');
+    expect($saida?->classificado)->toBeTrue();
+
+    $antes = Benfeitor::count();
+    $this->seed(AtualizarLancamentosExtratoPdfSeeder::class);
+    expect(Benfeitor::count())->toBe($antes);
 });

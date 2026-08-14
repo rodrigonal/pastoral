@@ -57,6 +57,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::middleware(['permission:prestacao-contas.export'])->group(function () {
         Route::post('prestacao-contas/pdf', [\App\Http\Controllers\PrestacaoContasController::class, 'download'])->name('prestacao-contas.pdf');
+        Route::get('prestacao-contas/extratos/{arquivo}', [\App\Http\Controllers\PrestacaoContasController::class, 'downloadExtrato'])
+            ->where('arquivo', '[A-Za-z0-9._-]+')
+            ->name('prestacao-contas.extrato');
     });
 
     Route::middleware(['permission:users.view'])->group(function () {

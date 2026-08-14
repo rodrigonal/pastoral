@@ -61,3 +61,35 @@ it('abre a tela da arte com frase e data', function () {
         ->assertSee('Pastoral de Rua')
         ->assertSee('10/08/2026');
 });
+
+it('gera png no formato story do instagram com fotos quadradas', function () {
+    $pastoral = Pastoral::factory()->create([
+        'user_id' => $this->user->id,
+        'frase_id' => 1,
+        'data' => '2026-08-10',
+        'agradecimento' => 'Obrigado, irmãos.',
+    ]);
+
+    $foto = UploadedFile::fake()->image('acao.jpg', 1200, 800);
+    $path = $foto->store('pastorais/'.$pastoral->id, 'public');
+    PastoralImagem::create([
+        'pastoral_id' => $pastoral->id,
+        'path' => $path,
+        'ordem' => 1,
+    ]);
+
+    Livewire::test('pastorais.arte', ['pastoral' => $pastoral])
+        ->call('baixar')
+        ->assertFileDownloaded('pastoral-de-rua-2026-08-10.png');
+
+    $png = app(\App\Services\PastoralArteGenerator::class)->gerar(
+        $pastoral->fresh(),
+        $pastoral->imagens,
+        'Obrigado, irmãos.',
+        FrasesPastorais::find(1)
+    );
+    $info = getimagesizefromstring($png);
+    expect($info[0])->toBe(1080);
+    expect($info[1])->toBe(1920);
+    expect($info['mime'])->toBe('image/png');
+});

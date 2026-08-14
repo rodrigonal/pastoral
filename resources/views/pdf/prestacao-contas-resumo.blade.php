@@ -152,5 +152,7 @@
             </div>
         @endforeach
     @endif
+
+    @include('pdf.partials.extratos-anexos')
 </body>
 </html>

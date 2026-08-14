@@ -105,4 +105,38 @@ class extends Component {
         <p class="text-zinc-500">Você não tem permissão para gerar PDF.</p>
         @endcan
     </div>
+
+    @php
+        $extratosVersionados = \App\Support\ExtratoBancarioCatalogo::todos();
+    @endphp
+    @if(count($extratosVersionados) > 0)
+    <div class="max-w-2xl rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-800">
+        <h2 class="mb-2 text-lg font-semibold">Extratos bancários (versionados)</h2>
+        <p class="mb-4 text-sm text-zinc-500">Estes PDFs ficam no repositório e são anexados automaticamente à prestação de contas do período correspondente.</p>
+        <ul class="space-y-3">
+            @foreach($extratosVersionados as $extrato)
+                <li class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <div class="text-sm font-medium">{{ $extrato['titulo'] }}</div>
+                        <div class="text-xs text-zinc-500">
+                            {{ \Carbon\Carbon::parse($extrato['inicio'])->format('d/m/Y') }}
+                            a
+                            {{ \Carbon\Carbon::parse($extrato['fim'])->format('d/m/Y') }}
+                            @if(!empty($extrato['seeder']))
+                                · seeder {{ $extrato['seeder'] }}
+                            @endif
+                        </div>
+                    </div>
+                    @can('prestacao-contas.export')
+                        @if($extrato['existe'])
+                            <a href="{{ route('prestacao-contas.extrato', $extrato['arquivo']) }}" class="text-sm text-blue-600 hover:underline">Baixar PDF</a>
+                        @else
+                            <span class="text-xs text-red-600">Arquivo ausente</span>
+                        @endif
+                    @endcan
+                </li>
+            @endforeach
+        </ul>
+    </div>
+    @endif
 </div>

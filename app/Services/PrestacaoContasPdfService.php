@@ -3,11 +3,12 @@
 namespace App\Services;
 
 use App\Enums\CategoriaLancamentoEnum;
-use Illuminate\Support\Facades\File;
 use App\Enums\TipoLancamentoEnum;
 use App\Models\Lancamento;
+use App\Support\ExtratoBancarioCatalogo;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use setasign\Fpdi\Fpdi;
 use Symfony\Component\HttpFoundation\Response;
@@ -52,6 +53,8 @@ class PrestacaoContasPdfService
                 }
                 $mesAtual->addMonth();
             }
+
+            $this->anexarPdfs($fpdi, ExtratoBancarioCatalogo::noPeriodo($dataInicio, $dataFim)->pluck('caminho')->all());
 
             $output = $fpdi->Output('S');
         } finally {
@@ -118,6 +121,7 @@ class PrestacaoContasPdfService
             'totalReembolsos' => $totalReembolsos,
             'saldoAnterior' => $saldoAnterior,
             'saldoFinal' => $saldoFinal,
+            'extratos' => ExtratoBancarioCatalogo::noPeriodo($inicio, $fim),
         ];
 
         $domPdf = Pdf::loadView('pdf.prestacao-contas-resumo', $data)
@@ -131,39 +135,14 @@ class PrestacaoContasPdfService
         $tempMain = tempnam(sys_get_temp_dir(), 'prestacao_');
         $domPdf->save($tempMain);
 
-        if ($lancamentosComPdf->isEmpty()) {
-            $output = file_get_contents($tempMain);
-            @unlink($tempMain);
-        } else {
-            try {
-                $fpdi = new Fpdi;
-                $pageCount = $fpdi->setSourceFile($tempMain);
-                for ($i = 1; $i <= $pageCount; $i++) {
-                    $tplId = $fpdi->importPage($i);
-                    $fpdi->AddPage();
-                    $fpdi->useTemplate($tplId);
-                }
-                foreach ($lancamentosComPdf as $lancamento) {
-                    $anexoPath = Storage::disk('local')->path($lancamento->anexo_path);
-                    if (! file_exists($anexoPath)) {
-                        continue;
-                    }
-                    try {
-                        $anexoPageCount = $fpdi->setSourceFile($anexoPath);
-                        for ($i = 1; $i <= $anexoPageCount; $i++) {
-                            $tplId = $fpdi->importPage($i);
-                            $fpdi->AddPage();
-                            $fpdi->useTemplate($tplId);
-                        }
-                    } catch (\Throwable) {
-                        continue;
-                    }
-                }
-                $output = $fpdi->Output('S');
-            } finally {
-                @unlink($tempMain);
-            }
-        }
+        $anexos = $lancamentosComPdf
+            ->map(fn (Lancamento $l) => Storage::disk('local')->path($l->anexo_path))
+            ->merge(ExtratoBancarioCatalogo::noPeriodo($inicio, $fim)->pluck('caminho'))
+            ->all();
+
+        $tempFinal = $this->concatenarAnexos($tempMain, $anexos);
+        $output = file_get_contents($tempFinal);
+        @unlink($tempFinal);
 
         $filename = "prestacao-contas-resumo-{$mesInicioNome}-{$anoInicio}-a-{$mesFimNome}-{$anoFim}.pdf";
 
@@ -179,7 +158,13 @@ class PrestacaoContasPdfService
      */
     public function gerar(int $mes, int $ano): Response
     {
+        $inicio = Carbon::createFromDate($ano, $mes, 1)->startOfMonth();
+        $fim = $inicio->copy()->endOfMonth();
         $tempFile = $this->gerarPdfUnicoMesTemp($mes, $ano);
+        $tempFile = $this->concatenarAnexos(
+            $tempFile,
+            ExtratoBancarioCatalogo::noPeriodo($inicio, $fim)->pluck('caminho')->all()
+        );
         $mesNome = Carbon::create()->month($mes)->locale('pt_BR')->translatedFormat('F');
         $filename = "prestacao-contas-{$mesNome}-{$ano}.pdf";
 
@@ -241,6 +226,7 @@ class PrestacaoContasPdfService
             'totalReembolsos' => $totalReembolsos,
             'saldoAnterior' => $saldoAnterior,
             'saldoFinal' => $saldoFinal,
+            'extratos' => ExtratoBancarioCatalogo::noPeriodo($inicio, $fim),
         ];
 
         $domPdf = Pdf::loadView('pdf.prestacao-contas-mensal', $data)
@@ -254,7 +240,24 @@ class PrestacaoContasPdfService
         $tempMain = tempnam(sys_get_temp_dir(), 'prestacao_');
         $domPdf->save($tempMain);
 
-        if ($lancamentosComPdf->isEmpty()) {
+        $anexos = $lancamentosComPdf
+            ->map(fn (Lancamento $l) => Storage::disk('local')->path($l->anexo_path))
+            ->all();
+
+        return $this->concatenarAnexos($tempMain, $anexos);
+    }
+
+    /**
+     * @param  list<string>  $caminhos
+     */
+    private function concatenarAnexos(string $tempMain, array $caminhos): string
+    {
+        $caminhos = array_values(array_filter(
+            $caminhos,
+            fn ($caminho) => is_string($caminho) && is_file($caminho)
+        ));
+
+        if ($caminhos === []) {
             return $tempMain;
         }
 
@@ -267,31 +270,38 @@ class PrestacaoContasPdfService
                 $fpdi->useTemplate($tplId);
             }
 
-            foreach ($lancamentosComPdf as $lancamento) {
-                $anexoPath = Storage::disk('local')->path($lancamento->anexo_path);
-                if (! file_exists($anexoPath)) {
-                    continue;
-                }
-                try {
-                    $anexoPageCount = $fpdi->setSourceFile($anexoPath);
-                    for ($i = 1; $i <= $anexoPageCount; $i++) {
-                        $tplId = $fpdi->importPage($i);
-                        $fpdi->AddPage();
-                        $fpdi->useTemplate($tplId);
-                    }
-                } catch (\Throwable) {
-                    continue;
-                }
-            }
+            $this->anexarPdfs($fpdi, $caminhos);
 
             $tempFinal = tempnam(sys_get_temp_dir(), 'prestacao_');
             file_put_contents($tempFinal, $fpdi->Output('S'));
             @unlink($tempMain);
 
             return $tempFinal;
-        } catch (\Throwable $e) {
-            @unlink($tempMain);
-            throw $e;
+        } catch (\Throwable) {
+            return $tempMain;
+        }
+    }
+
+    /**
+     * @param  list<string>  $caminhos
+     */
+    private function anexarPdfs(Fpdi $fpdi, array $caminhos): void
+    {
+        foreach ($caminhos as $caminho) {
+            if (! is_string($caminho) || ! is_file($caminho)) {
+                continue;
+            }
+
+            try {
+                $pageCount = $fpdi->setSourceFile($caminho);
+                for ($i = 1; $i <= $pageCount; $i++) {
+                    $tplId = $fpdi->importPage($i);
+                    $fpdi->AddPage();
+                    $fpdi->useTemplate($tplId);
+                }
+            } catch (\Throwable) {
+                continue;
+            }
         }
     }
 

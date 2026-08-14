@@ -3,11 +3,24 @@
 namespace App\Http\Controllers;
 
 use App\Services\PrestacaoContasPdfService;
+use App\Support\ExtratoBancarioCatalogo;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class PrestacaoContasController extends Controller
 {
+    public function downloadExtrato(string $arquivo): HttpResponse
+    {
+        $arquivo = basename($arquivo);
+        $item = collect(ExtratoBancarioCatalogo::todos())->firstWhere('arquivo', $arquivo);
+
+        abort_unless($item && ($item['existe'] ?? false), 404);
+
+        return response()->download($item['caminho'], $arquivo, [
+            'Content-Type' => 'application/pdf',
+        ]);
+    }
+
     public function download(Request $request): HttpResponse
     {
         $periodo = $request->filled('mes_inicio');

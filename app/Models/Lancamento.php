@@ -89,12 +89,12 @@ class Lancamento extends Model
 
     public function scopeContaAtual(Builder $query): Builder
     {
-        return $query->where('is_historico', false);
+        return $query->where('is_historico', 0);
     }
 
     public function scopeHistorico(Builder $query): Builder
     {
-        return $query->where('is_historico', true);
+        return $query->where('is_historico', 1);
     }
 
     public function scopePendentes(Builder $query): Builder

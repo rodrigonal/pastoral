@@ -28,18 +28,16 @@ class SaldoService
     }
 
     /**
-     * Saldo acumulado até determinada data (inclusive).
-     * Reembolsos não afetam o saldo (apenas controle no relatório).
-     * Lançamentos legado da conta antiga não entram no cálculo.
+     * Saldo acumulado da conta atual até determinada data (inclusive).
+     * Reembolsos não afetam o saldo. O saldo legado da conta antiga é descontado.
      */
     public function saldoAcumulado(?Carbon $ate = null): float
     {
-        return $this->saldoDaQuery($this->queryContaAtual(), $ate);
+        return round($this->saldoLivro($ate) - $this->saldoLegado($ate), 2);
     }
 
     /**
      * Saldo do livro da conta antiga (Centro Social), que ficou inacessível.
-     * Não entra no saldo da conta Bradesco em uso.
      */
     public function saldoLegado(?Carbon $ate = null): float
     {
@@ -55,11 +53,19 @@ class SaldoService
     }
 
     /**
-     * Saldo na conta bancária atual = saldo acumulado pelos lançamentos novos − saldo em mãos.
+     * Saldo na conta bancária atual = livro caixa − saldo legado − saldo em mãos.
      */
     public function saldoEmConta(?Carbon $ate = null): float
     {
         return round($this->saldoAcumulado($ate) - $this->saldoEmMaos(), 2);
+    }
+
+    /**
+     * Soma de todos os lançamentos (conta atual + legado), exceto reembolsos.
+     */
+    public function saldoLivro(?Carbon $ate = null): float
+    {
+        return $this->saldoDaQuery(Lancamento::query(), $ate);
     }
 
     private function saldoDaQuery(Builder $query, ?Carbon $ate = null): float

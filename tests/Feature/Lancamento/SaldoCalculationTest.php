@@ -167,5 +167,7 @@ it('separa saldo legado da conta antiga do saldo da conta atual', function () {
 
     expect($this->saldoService->saldoAcumulado())->toBe(200.0);
     expect($this->saldoService->saldoLegado())->toBe(5000.0);
+    expect($this->saldoService->saldoLivro())->toBe(5200.0);
     expect($this->saldoService->saldoEmConta())->toBe(200.0);
+    expect($this->saldoService->saldoEmConta())->not->toBe($this->saldoService->saldoLivro());
 });

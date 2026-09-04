@@ -1,6 +1,6 @@
 <?php
 
-use Database\Seeders\ExtratoAgoSet2026Seeder;
+use Database\Seeders\ExtratoAgo2026Seeder;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schema;
@@ -13,12 +13,12 @@ return new class extends Migration
             return;
         }
 
-        if (! class_exists(ExtratoAgoSet2026Seeder::class)) {
+        if (! class_exists(ExtratoAgo2026Seeder::class)) {
             return;
         }
 
         Artisan::call('db:seed', [
-            '--class' => ExtratoAgoSet2026Seeder::class,
+            '--class' => ExtratoAgo2026Seeder::class,
             '--force' => true,
         ]);
 
@@ -34,7 +34,7 @@ return new class extends Migration
             return;
         }
 
-        $csv = database_path('seeders/data/extrato-2026-08-17-a-2026-09-03.csv');
+        $csv = database_path(ExtratoAgo2026Seeder::CSV);
         if (! is_file($csv) || ! class_exists(\App\Services\ExtratoBancarioParser::class)) {
             return;
         }
@@ -49,5 +49,11 @@ return new class extends Migration
                 ->where('historico_bancario', $linha['historico'])
                 ->delete();
         }
+
+        \App\Models\Lancamento::query()
+            ->whereDate('data', '2026-09-03')
+            ->where('documento', '1219264')
+            ->where('historico_bancario', 'PIX RECEBIDO')
+            ->delete();
     }
 };

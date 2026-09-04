@@ -93,6 +93,8 @@ class NomeExtrato
             'GUSTAVO CRUZ COELHO' => 'Gustavo Cruz Coelho',
             'ANA C BATISTA VERAS' => 'Ana C. Batista Veras',
             'T. L. PINTO' => 'T. L. Pinto',
+            'COMERCIAL KLARA' => 'Comercial Klara',
+            'CENTRO ADMINISTRATIVO' => 'Centro Administrativo',
         ];
 
         return $mapa[$upper] ?? null;

@@ -72,20 +72,33 @@ class ClassificacaoContaLancamentos
      */
     public static function documentosExtratoAtual(): array
     {
-        $csv = database_path('seeders/data/extrato-conta-atual.csv');
-        if (! is_file($csv)) {
-            return [];
-        }
-
         $documentos = [];
-        foreach (app(ExtratoBancarioParser::class)->parse($csv) as $linha) {
-            $doc = ltrim((string) ($linha['documento'] ?? ''), '0');
-            if ($doc !== '') {
-                $documentos[] = $doc;
+        $parser = app(ExtratoBancarioParser::class);
+
+        foreach (self::arquivosExtratoCsv() as $csv) {
+            foreach ($parser->parse($csv) as $linha) {
+                $doc = ltrim((string) ($linha['documento'] ?? ''), '0');
+                if ($doc !== '') {
+                    $documentos[] = $doc;
+                }
             }
         }
 
         return array_values(array_unique($documentos));
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function arquivosExtratoCsv(): array
+    {
+        $dir = database_path('seeders/data');
+        $arquivos = glob($dir.DIRECTORY_SEPARATOR.'extrato-*.csv') ?: [];
+
+        return array_values(array_filter(
+            $arquivos,
+            fn (string $path) => ! str_contains(basename($path), 'contrapartes')
+        ));
     }
 
     public static function calcularSaldoLegado(): float

@@ -18,7 +18,7 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             ExtratoContaAtualSeeder::class,
             AtualizarLancamentosExtratoPdfSeeder::class,
-            ExtratoAgoSet2026Seeder::class,
+            ExtratoAgo2026Seeder::class,
             ClassificarLancamentosLegadoSeeder::class,
         ]);
     }

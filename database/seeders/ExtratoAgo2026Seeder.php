@@ -9,12 +9,16 @@ use App\Services\ExtratoBancarioParser;
 use App\Support\NomeExtrato;
 use Illuminate\Database\Seeder;
 
-class ExtratoAgoSet2026Seeder extends Seeder
+class ExtratoAgo2026Seeder extends Seeder
 {
+    public const CSV = 'seeders/data/extrato-2026-08-11-a-2026-08-31.csv';
+
+    public const CONTRAPARTES = 'seeders/data/extrato-2026-08-11-a-2026-08-31-contrapartes.csv';
+
     public function run(): void
     {
-        $csv = database_path('seeders/data/extrato-2026-08-17-a-2026-09-03.csv');
-        $contrapartes = database_path('seeders/data/extrato-2026-08-17-a-2026-09-03-contrapartes.csv');
+        $csv = database_path(self::CSV);
+        $contrapartes = database_path(self::CONTRAPARTES);
 
         if (! is_file($csv)) {
             $this->command?->warn('Arquivo de extrato não encontrado: '.$csv);
@@ -30,6 +34,13 @@ class ExtratoAgoSet2026Seeder extends Seeder
 
             return;
         }
+
+        // Remove PIX de 03/09 que entrou por engano na versão anterior (folha "Últimos Lançamentos").
+        Lancamento::query()
+            ->whereDate('data', '2026-09-03')
+            ->where('documento', '1219264')
+            ->where('historico_bancario', 'PIX RECEBIDO')
+            ->delete();
 
         $parser = app(ExtratoBancarioParser::class);
         $linhas = $parser->parse($csv);
@@ -78,7 +89,7 @@ class ExtratoAgoSet2026Seeder extends Seeder
             $criados++;
         }
 
-        $this->command?->info("Extrato ago/set 2026: {$criados} criados, {$atualizados} atualizados.");
+        $this->command?->info("Extrato ago/2026: {$criados} criados, {$atualizados} atualizados.");
     }
 
     /**

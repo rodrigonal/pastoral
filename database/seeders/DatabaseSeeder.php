@@ -16,9 +16,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RolePermissionSeeder::class,
             UserSeeder::class,
-            ExtratoContaAtualSeeder::class,
-            AtualizarLancamentosExtratoPdfSeeder::class,
-            ExtratoAgo2026Seeder::class,
+            ExtratoContaCompletoSeeder::class,
             ClassificarLancamentosLegadoSeeder::class,
         ]);
     }

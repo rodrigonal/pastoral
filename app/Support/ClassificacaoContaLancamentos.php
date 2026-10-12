@@ -6,6 +6,7 @@ use App\Enums\CategoriaLancamentoEnum;
 use App\Enums\TipoLancamentoEnum;
 use App\Models\ControleSaldo;
 use App\Models\Lancamento;
+use App\Models\LancamentoLegadoCs;
 use App\Services\ExtratoBancarioParser;
 use Illuminate\Support\Facades\Schema;
 
@@ -92,6 +93,11 @@ class ClassificacaoContaLancamentos
      */
     public static function arquivosExtratoCsv(): array
     {
+        $completa = database_path('seeders/data/extrato-conta-completa.csv');
+        if (is_file($completa)) {
+            return [$completa];
+        }
+
         $dir = database_path('seeders/data');
         $arquivos = glob($dir.DIRECTORY_SEPARATOR.'extrato-*.csv') ?: [];
 
@@ -103,8 +109,18 @@ class ClassificacaoContaLancamentos
 
     public static function calcularSaldoLegado(): float
     {
-        $query = Lancamento::query()->historico();
+        $emLancamentos = self::saldoDaQuery(Lancamento::query()->historico());
+        $arquivado = 0.0;
 
+        if (Schema::hasTable('lancamentos_legado_cs')) {
+            $arquivado = self::saldoDaQuery(LancamentoLegadoCs::query());
+        }
+
+        return round($emLancamentos + $arquivado, 2);
+    }
+
+    private static function saldoDaQuery($query): float
+    {
         $entradas = (clone $query)
             ->where('tipo', TipoLancamentoEnum::Entrada)
             ->sum('valor');

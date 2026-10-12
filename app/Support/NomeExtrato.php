@@ -95,6 +95,16 @@ class NomeExtrato
             'T. L. PINTO' => 'T. L. Pinto',
             'COMERCIAL KLARA' => 'Comercial Klara',
             'CENTRO ADMINISTRATIVO' => 'Centro Administrativo',
+            'LUCAS FERREIRA FONTIN' => 'Lucas Ferreira Fontin',
+            'CLAUDIO ROMELL DE SOU' => 'Claudio Romell de Sousa',
+            'CLAUDIO ROMELL DE SOUSA' => 'Claudio Romell de Sousa',
+            'MOHANA E MENDONCA CON' => 'Mohana E. Mendonca Contabilidade',
+            'VANDIONITA DA CRUZ PI' => 'Vandionita da Cruz Pires',
+            'VANDIONITA DA CRUZ PIRES' => 'Vandionita da Cruz Pires',
+            'JOSE CLEZACY BATISTA' => 'Jose Clezacy Batista',
+            'JOSILENE ARAUJO FERRE' => 'Josilene Araujo Ferreira',
+            'JOSILENE ARAUJO FERREIRA' => 'Josilene Araujo Ferreira',
+            'DOUGLAS LIMA DA GUIA' => 'Douglas Lima da Guia',
         ];
 
         return $mapa[$upper] ?? null;

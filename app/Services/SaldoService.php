@@ -6,8 +6,10 @@ use App\Enums\CategoriaLancamentoEnum;
 use App\Enums\TipoLancamentoEnum;
 use App\Models\ControleSaldo;
 use App\Models\Lancamento;
+use App\Models\LancamentoLegadoCs;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Schema;
 
 class SaldoService
 {
@@ -20,7 +22,7 @@ class SaldoService
     }
 
     /**
-     * Lançamentos da conta antiga (CS), inacessível — só histórico.
+     * Lançamentos da conta antiga (CS) ainda em `lancamentos` (legado não arquivado).
      */
     public function queryLegado(): Builder
     {
@@ -29,7 +31,7 @@ class SaldoService
 
     /**
      * Saldo acumulado da conta atual até determinada data (inclusive).
-     * Reembolsos não afetam o saldo. O saldo legado da conta antiga é descontado.
+     * Reembolsos não afetam o saldo.
      */
     public function saldoAcumulado(?Carbon $ate = null): float
     {
@@ -37,11 +39,15 @@ class SaldoService
     }
 
     /**
-     * Saldo do livro da conta antiga (Centro Social), que ficou inacessível.
+     * Saldo do livro da conta antiga (Centro Social): arquivo `lancamentos_legado_cs`
+     * + quaisquer registros ainda marcados como histórico em `lancamentos`.
      */
     public function saldoLegado(?Carbon $ate = null): float
     {
-        return $this->saldoDaQuery($this->queryLegado(), $ate);
+        $emLancamentos = $this->saldoDaQuery($this->queryLegado(), $ate);
+        $arquivado = $this->saldoLegadoArquivado($ate);
+
+        return round($emLancamentos + $arquivado, 2);
     }
 
     /**
@@ -53,7 +59,8 @@ class SaldoService
     }
 
     /**
-     * Saldo na conta bancária atual = livro caixa − saldo legado − saldo em mãos.
+     * Saldo na conta bancária atual = livro da conta atual − saldo em mãos.
+     * Não inclui o saldo antigo da conta do CS.
      */
     public function saldoEmConta(?Carbon $ate = null): float
     {
@@ -61,11 +68,22 @@ class SaldoService
     }
 
     /**
-     * Soma de todos os lançamentos (conta atual + legado), exceto reembolsos.
+     * Soma de conta atual + saldo antigo (arquivo e/ou histórico), exceto reembolsos.
      */
     public function saldoLivro(?Carbon $ate = null): float
     {
-        return $this->saldoDaQuery(Lancamento::query(), $ate);
+        return round($this->saldoAcumulado($ate) + $this->saldoLegado($ate), 2);
+    }
+
+    private function saldoLegadoArquivado(?Carbon $ate = null): float
+    {
+        if (! Schema::hasTable('lancamentos_legado_cs')) {
+            return 0.0;
+        }
+
+        $query = LancamentoLegadoCs::query();
+
+        return $this->saldoDaQuery($query, $ate);
     }
 
     private function saldoDaQuery(Builder $query, ?Carbon $ate = null): float
